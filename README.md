@@ -17,7 +17,7 @@ Desktop and mobile, English / German. The Bitcoin node may live on another machi
 - **Checksums (Expert)** — key order and derivation `0/*` vs `<0;1>/*`; search for a known checksum
 - **Import / Export** — descriptor, miniscript, BSMS, Scriptwerk JSON, `scriptwerk.keys.txt` (names), BIP-388 for Ledger and BitBox (QR, file, USB). Files carry key names; QR stays comment-free.
 - **Bitcoin Core** — `getdescriptorinfo` via host proxy or node bridge. On StartOS: optional dependency; Scriptwerk creates RPC user `scriptwerk_xxxx` itself
-- **Hardware** — Ledger Bitcoin app and BitBox02 (WebHID), demo without a device. After Ledger registration: derive receive/change addresses and match them against Bitcoin Core (`deriveaddresses`). HMAC stays in this Scriptwerk session; it does not replace Nunchuk/Sparrow registration.
+- **Hardware** — Ledger Bitcoin app and BitBox02 (WebHID), demo without a device. Register the policy, then compare receive/change addresses from the device with Bitcoin Core (`deriveaddresses`). Ledger HMAC stays in this Scriptwerk session and does not replace Nunchuk/Sparrow. BitBox stores the policy on the device (firmware 9.15+). After a full match: check the same addresses in wallet software. A BitBox that is not one of the policy keys cannot derive this wallet.
 - **Self-host** — one script for Debian / Raspberry Pi (Docker or Node)
 - **StartOS** — wrapper in `deploy/startos`, sideload the `.s9pk` or Community Registry
 
@@ -154,7 +154,7 @@ Desktop und Mobil, Deutsch/Englisch. Bitcoin-Node darf auf einer anderen Maschin
 - **Checksummen (Experte)** — Key-Reihenfolge und Ableitung `0/*` vs `<0;1>/*`; Suche nach bekannter Checksumme
 - **Import / Export** — Descriptor, Miniscript, BSMS, Scriptwerk-JSON, `scriptwerk.keys.txt` (Namen), BIP-388 für Ledger und BitBox (QR, Datei, USB). Dateien tragen Key-Namen mit; QR bleibt ohne Kommentare.
 - **Bitcoin Core** — `getdescriptorinfo` über Host-Proxy oder Node-Brücke. Auf StartOS: optionale Abhängigkeit; Scriptwerk legt RPC-Nutzer `scriptwerk_xxxx` selbst an
-- **Hardware** — Ledger Bitcoin-App und BitBox02 (WebHID), Demo ohne Gerät. Nach Ledger-Registrierung: Empfangs-/Wechsel-Adressen ableiten und mit Bitcoin Core abgleichen. HMAC nur in dieser Scriptwerk-Session; ersetzt nicht die Registrierung in Nunchuk/Sparrow.
+- **Hardware** — Ledger Bitcoin-App und BitBox02 (WebHID), Demo ohne Gerät. Policy registrieren, dann Empfangs-/Wechsel-Adressen vom Gerät mit Bitcoin Core abgleichen. Ledger-HMAC nur in dieser Scriptwerk-Session, ersetzt nicht Nunchuk/Sparrow. BitBox speichert die Policy auf dem Gerät (Firmware 9.15+). Nach vollständigem Match: dieselben Adressen in der Walletsoftware prüfen. Eine BitBox, die keiner der Policy-Keys ist, kann diese Wallet nicht ableiten.
 - **Selbst hosten** — ein Skript für Debian / Raspberry Pi (Docker oder Node)
 - **StartOS** — Wrapper in `deploy/startos`, Sideload der `.s9pk` oder Community-Registry
 

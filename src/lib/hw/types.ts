@@ -23,6 +23,7 @@ export interface HwSession {
     change: number;
     index: number;
     display: boolean;
+    coin?: "btc" | "tbtc";
   }) => Promise<string>;
   close: () => Promise<void>;
 }

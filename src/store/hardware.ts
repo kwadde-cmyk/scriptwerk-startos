@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import type { Bip388Policy } from "@/lib/miniscript/bip388";
-import { policyCacheKey } from "@/lib/hw/address-check";
+import { policyCacheKey, isHmacHex } from "@/lib/hw/address-check";
 import {
   defaultAccountPath,
   detectHid,
@@ -108,6 +108,11 @@ export const useHardware = create<HardwareState>((set, get) => ({
         set({ status: "pairing", pairingCode: "K7T9", session: null });
         await new Promise((r) => setTimeout(r, 700));
       }
+      const keepHmac =
+        !session.demo &&
+        Boolean(get().lastHmac) &&
+        isHmacHex(get().lastHmac) &&
+        get().fingerprint === session.fingerprint;
       set({
         status: "ready",
         session,
@@ -118,6 +123,8 @@ export const useHardware = create<HardwareState>((set, get) => ({
         product: session.product,
         pairingCode: null,
         error: null,
+        lastHmac: keepHmac ? get().lastHmac : null,
+        policyHmacKey: keepHmac ? get().policyHmacKey : null,
       });
     } catch (err) {
       set({
@@ -158,7 +165,7 @@ export const useHardware = create<HardwareState>((set, get) => ({
       return result;
     } catch (err) {
       const message = hwErrorMessage(err);
-      set({ status: "error", error: message });
+      set({ status: get().session ? "ready" : "error", error: message });
       throw err;
     }
   },
@@ -181,19 +188,20 @@ export const useHardware = create<HardwareState>((set, get) => ({
     if (!session) throw new Error("hw.err.notConnected");
     const key = policyCacheKey(policy);
     const cached = get().lastHmac;
-    if (cached && cached !== "ok" && get().policyHmacKey === key) {
-      return cached;
+    if (get().policyHmacKey === key) {
+      if (session.kind !== "ledger") return cached || "ok";
+      if (isHmacHex(cached)) return cached;
     }
     set({ status: "busy", error: null });
     try {
       const result = await session.registerPolicy(policy);
       const hmac = result.hmac ?? "";
-      if (!hmac) throw new Error("hw.err.needHmac");
-      set({ status: "ready", lastHmac: hmac, policyHmacKey: key });
-      return hmac;
+      if (session.kind === "ledger" && !isHmacHex(hmac)) throw new Error("hw.err.needHmac");
+      set({ status: "ready", lastHmac: hmac || null, policyHmacKey: key, error: null });
+      return hmac || "ok";
     } catch (err) {
       const message = hwErrorMessage(err);
-      set({ status: "error", error: message });
+      set({ status: get().session ? "ready" : "error", error: message });
       throw err;
     }
   },
@@ -202,15 +210,24 @@ export const useHardware = create<HardwareState>((set, get) => ({
     const session = get().session;
     if (!session) throw new Error("hw.err.notConnected");
     const hmac = await get().registerPolicy(policy);
+    const network = useStudio.getState().network;
     set({ status: "busy", error: null });
     try {
-      const addr = await session.getWalletAddress({ policy, hmac, change, index, display });
+      const addr = await session.getWalletAddress({
+        policy,
+        hmac,
+        change,
+        index,
+        display,
+        coin: network === "testnet" ? "tbtc" : "btc",
+      });
       set({ status: "ready" });
       return addr;
     } catch (err) {
-      const message = hwErrorMessage(err);
-      set({ status: "error", error: message });
-      throw err;
+      const raw = err instanceof Error ? err.message : hwErrorMessage(err);
+      const message = raw.startsWith("hw.") ? raw : hwErrorMessage(err);
+      set({ status: get().session ? "ready" : "error", error: message });
+      throw err instanceof Error ? err : new Error(message);
     }
   },
 }));

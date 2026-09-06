@@ -35,8 +35,8 @@ export function HardwareButton() {
   const { t } = useT();
   const open = useHardware((s) => s.open);
   const setOpen = useHardware((s) => s.setOpen);
-  const status = useHardware((s) => s.status);
-  const ready = status === "ready" || status === "busy";
+  const session = useHardware((s) => s.session);
+  const ready = Boolean(session);
 
   useEffect(() => {
     useHardware.setState({ hid: detectHid() });
@@ -77,6 +77,7 @@ function HardwareDialogBody() {
   const network = useStudio((s) => s.network);
   const reuseKeys = useStudio((s) => s.reuseKeys);
   const dialogOpen = useHardware((s) => s.open);
+  const session = useHardware((s) => s.session);
   const [path, setPath] = useState(defaultAccountPath(network));
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const [walletName, setWalletName] = useState("Scriptwerk");
@@ -90,7 +91,7 @@ function HardwareDialogBody() {
     () => (dialogOpen && root ? compileBip388(root, keys, walletName, reuseKeys) : null),
     [dialogOpen, root, keys, reuseKeys, walletName],
   );
-  const ready = status === "ready" || status === "busy";
+  const ready = Boolean(session);
   const errText = error ? localizeMessage(locale, error) : null;
 
   async function run(fn: () => Promise<void>) {
@@ -241,15 +242,19 @@ function HardwareDialogBody() {
               {t("hw.disconnect")}
             </Button>
           </div>
-          {lastHmac ? (
+          {lastHmac && lastHmac.length === 64 ? (
             <p className="font-mono text-2xs text-fg-subtle">
               {t("hw.hmacSession")} · {lastHmac.slice(0, 8)}…
             </p>
+          ) : kind === "bitbox" ? (
+            <p className="text-2xs text-fg-subtle">{t("hw.bitboxStored")}</p>
           ) : null}
-          <p className="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-2xs text-pretty text-warn">
-            {t("hw.verifyNotice")}
-          </p>
-          {kind === "ledger" && bip?.ok ? (
+          {kind === "ledger" ? (
+            <p className="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-2xs text-pretty text-warn">
+              {t("hw.verifyNotice")}
+            </p>
+          ) : null}
+          {bip?.ok ? (
             <AddressCheckPanel
               policyOk={bip.ok}
               walletName={walletName}
@@ -453,6 +458,11 @@ function AddressCheckPanel({
       {done && rows.length ? (
         <p className={`text-xs ${ok ? "text-ok" : "text-danger"}`}>
           {ok ? t("hw.checkOk") : t("hw.checkFail")}
+        </p>
+      ) : null}
+      {ok ? (
+        <p className="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-2xs text-pretty text-warn">
+          {t("hw.checkNextWallet")}
         </p>
       ) : null}
       {rows.length ? (

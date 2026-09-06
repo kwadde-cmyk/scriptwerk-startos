@@ -60,9 +60,12 @@ import {
 import { defaultAccountPath, formatOrigin, normalizeHwPath, pathToDerivation } from "../hw/types.ts";
 import {
   allRequestedMatch,
+  alignLedgerOrigin,
+  bitboxAddressPath,
   chainMatches,
   clampIndexRange,
   descriptorForBranch,
+  isHmacHex,
   policyCacheKey,
 } from "../hw/address-check.ts";
 import { validatePolicy } from "./validate.ts";
@@ -1075,6 +1078,39 @@ describe("ledger address check helpers", () => {
     assert.equal(chainMatches("mainnet", "main"), true);
     assert.equal(chainMatches("mainnet", "test"), false);
     assert.equal(chainMatches("testnet", "signet"), false);
+    assert.equal(isHmacHex("00".repeat(32)), true);
+    assert.equal(isHmacHex("demo"), false);
+    assert.equal(
+      alignLedgerOrigin(`[deadbeef/48'/0'/0'/2']${XPUB}`, "deadbeef", "1'"),
+      `[deadbeef/48'/1'/0'/2']${XPUB}`,
+    );
+    assert.equal(
+      alignLedgerOrigin(`[cafebabe/48'/0'/0'/2']${XPUB}`, "deadbeef", "1'"),
+      `[cafebabe/48'/0'/0'/2']${XPUB}`,
+    );
+    assert.equal(
+      bitboxAddressPath(
+        {
+          name: "Scriptwerk",
+          template: "wsh(pk(@0/**))",
+          keys: [
+            {
+              index: 0,
+              name: "A",
+              label: "A",
+              fingerprint: "b17b0b02",
+              derivation: "48'/0'/0'/2'",
+              xpub: XPUB,
+              origin: `[b17b0b02/48'/0'/0'/2']${XPUB}`,
+            },
+          ],
+        },
+        "b17b0b02",
+        1,
+        3,
+      ),
+      "m/48'/0'/0'/2'/1/3",
+    );
   });
 
   it("does not warn just because a policy has many keys", () => {

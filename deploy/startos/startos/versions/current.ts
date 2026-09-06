@@ -1,7 +1,7 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.10:0',
+  version: '0.1.11:0',
   releaseNotes: {
     en_US:
       'After Ledger policy registration, derive receive/change addresses and compare them with Bitcoin Core. HMAC stays in this session only. Removed the generic “too many keys” Ledger warning.',
