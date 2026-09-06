@@ -17,6 +17,13 @@ export interface HwSession {
   product: string;
   getXpub: (path: string, display?: boolean) => Promise<HwXpub>;
   registerPolicy: (policy: Bip388Policy) => Promise<{ hmac?: string }>;
+  getWalletAddress: (opts: {
+    policy: Bip388Policy;
+    hmac: string;
+    change: number;
+    index: number;
+    display: boolean;
+  }) => Promise<string>;
   close: () => Promise<void>;
 }
 

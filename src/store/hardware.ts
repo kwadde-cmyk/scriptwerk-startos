@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import type { Bip388Policy } from "@/lib/miniscript/bip388";
+import { policyCacheKey } from "@/lib/hw/address-check";
 import {
   defaultAccountPath,
   detectHid,
@@ -27,6 +28,7 @@ interface HardwareState {
   pendingKeyId: string | null;
   hid: HidSupport;
   lastHmac: string | null;
+  policyHmacKey: string | null;
   session: HwSession | null;
   setOpen: (open: boolean) => void;
   setPendingKey: (id: string | null) => void;
@@ -34,7 +36,13 @@ interface HardwareState {
   disconnect: () => Promise<void>;
   fetchXpub: (path?: string, display?: boolean) => Promise<HwXpub>;
   fillKey: (keyId: string, path?: string) => Promise<void>;
-  registerPolicy: (policy: Bip388Policy) => Promise<void>;
+  registerPolicy: (policy: Bip388Policy) => Promise<string>;
+  getWalletAddress: (opts: {
+    policy: Bip388Policy;
+    change: number;
+    index: number;
+    display: boolean;
+  }) => Promise<string>;
 }
 
 function refreshHid(): HidSupport {
@@ -54,6 +62,7 @@ export const useHardware = create<HardwareState>((set, get) => ({
   pendingKeyId: null,
   hid: "missing",
   lastHmac: null,
+  policyHmacKey: null,
   session: null,
 
   setOpen: (open) => {
@@ -133,7 +142,6 @@ export const useHardware = create<HardwareState>((set, get) => ({
       product: "",
       pairingCode: null,
       error: null,
-      lastHmac: null,
     });
     if (session) await session.close().catch(() => undefined);
   },
@@ -171,10 +179,34 @@ export const useHardware = create<HardwareState>((set, get) => ({
   registerPolicy: async (policy) => {
     const session = get().session;
     if (!session) throw new Error("hw.err.notConnected");
+    const key = policyCacheKey(policy);
+    const cached = get().lastHmac;
+    if (cached && cached !== "ok" && get().policyHmacKey === key) {
+      return cached;
+    }
     set({ status: "busy", error: null });
     try {
       const result = await session.registerPolicy(policy);
-      set({ status: "ready", lastHmac: result.hmac ?? "ok" });
+      const hmac = result.hmac ?? "";
+      if (!hmac) throw new Error("hw.err.needHmac");
+      set({ status: "ready", lastHmac: hmac, policyHmacKey: key });
+      return hmac;
+    } catch (err) {
+      const message = hwErrorMessage(err);
+      set({ status: "error", error: message });
+      throw err;
+    }
+  },
+
+  getWalletAddress: async ({ policy, change, index, display }) => {
+    const session = get().session;
+    if (!session) throw new Error("hw.err.notConnected");
+    const hmac = await get().registerPolicy(policy);
+    set({ status: "busy", error: null });
+    try {
+      const addr = await session.getWalletAddress({ policy, hmac, change, index, display });
+      set({ status: "ready" });
+      return addr;
     } catch (err) {
       const message = hwErrorMessage(err);
       set({ status: "error", error: message });

@@ -395,3 +395,15 @@ async function deriveSample(config: BitcoindConfig, desc: string, isrange: boole
   }
   throw last instanceof Error ? last : new Error("node.err.derive");
 }
+
+export async function deriveAddressRange(
+  config: BitcoindConfig,
+  descriptor: string,
+  begin: number,
+  end: number,
+): Promise<string[]> {
+  const desc = descriptor.includes("#") ? descriptor : `${descriptor}`;
+  const raw = await jsonRpc(config, "deriveaddresses", [desc, [begin, end]]);
+  if (!Array.isArray(raw)) throw new Error("node.err.derive");
+  return raw.map(String);
+}

@@ -1,8 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
 import { compileBip388 } from "@/lib/miniscript/bip388";
+import { compileDescriptorCached } from "@/lib/miniscript/compile";
+import {
+  allRequestedMatch,
+  chainMatches,
+  clampIndexRange,
+  descriptorForBranch,
+  policyCacheKey,
+  type AddressCheckRow,
+  type AddressKind,
+} from "@/lib/hw/address-check";
+import { deriveAddressRange } from "@/lib/bitcoind/rpc";
 import { defaultAccountPath, detectHid, type HwKind } from "@/lib/hw";
 import { useHardware } from "@/store/hardware";
 import { useStudio } from "@/store/studio";
+import { useBitcoind } from "@/store/bitcoind";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -55,6 +67,7 @@ function HardwareDialogBody() {
   const hid = useHardware((s) => s.hid);
   const pendingKeyId = useHardware((s) => s.pendingKeyId);
   const lastHmac = useHardware((s) => s.lastHmac);
+  const policyHmacKey = useHardware((s) => s.policyHmacKey);
   const connect = useHardware((s) => s.connect);
   const disconnect = useHardware((s) => s.disconnect);
   const fillKey = useHardware((s) => s.fillKey);
@@ -66,6 +79,7 @@ function HardwareDialogBody() {
   const dialogOpen = useHardware((s) => s.open);
   const [path, setPath] = useState(defaultAccountPath(network));
   const [busyAction, setBusyAction] = useState<string | null>(null);
+  const [walletName, setWalletName] = useState("Scriptwerk");
 
   useEffect(() => {
     setPath(defaultAccountPath(network));
@@ -73,8 +87,8 @@ function HardwareDialogBody() {
 
   const pending = keys.find((k) => k.id === pendingKeyId) ?? null;
   const bip = useMemo(
-    () => (dialogOpen && root ? compileBip388(root, keys, "Scriptwerk", reuseKeys) : null),
-    [dialogOpen, root, keys, reuseKeys],
+    () => (dialogOpen && root ? compileBip388(root, keys, walletName, reuseKeys) : null),
+    [dialogOpen, root, keys, reuseKeys, walletName],
   );
   const ready = status === "ready" || status === "busy";
   const errText = error ? localizeMessage(locale, error) : null;
@@ -165,6 +179,16 @@ function HardwareDialogBody() {
           </div>
 
           <div className="space-y-1">
+            <Label htmlFor="hw-name">{t("export.policyName")}</Label>
+            <Input
+              id="hw-name"
+              value={walletName}
+              onChange={(e) => setWalletName(e.target.value.slice(0, 64))}
+              className="text-xs"
+            />
+          </div>
+
+          <div className="space-y-1">
             <Label htmlFor="hw-path">{t("keys.bip32")}</Label>
             <Input
               id="hw-path"
@@ -204,8 +228,10 @@ function HardwareDialogBody() {
                     toast.error(bip?.error ?? t("export.none"));
                     return;
                   }
+                  const key = policyCacheKey(bip.policy);
+                  const reused = Boolean(lastHmac && policyHmacKey === key);
                   await registerPolicy(bip.policy);
-                  toast.success(t("hw.registered"));
+                  toast.success(reused ? t("hw.hmacReuse") : t("hw.registered"));
                 })
               }
             >
@@ -215,13 +241,251 @@ function HardwareDialogBody() {
               {t("hw.disconnect")}
             </Button>
           </div>
-          {lastHmac && lastHmac !== "ok" && lastHmac !== "demo" ? (
-            <p className="font-mono text-2xs break-all text-fg-subtle">HMAC {lastHmac}</p>
+          {lastHmac ? (
+            <p className="font-mono text-2xs text-fg-subtle">
+              {t("hw.hmacSession")} · {lastHmac.slice(0, 8)}…
+            </p>
           ) : null}
-          <p className="text-2xs text-fg-subtle">{t("hw.registerHint")}</p>
+          <p className="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-2xs text-pretty text-warn">
+            {t("hw.verifyNotice")}
+          </p>
+          {kind === "ledger" && bip?.ok ? (
+            <AddressCheckPanel
+              policyOk={bip.ok}
+              walletName={walletName}
+              disabled={Boolean(busyAction)}
+            />
+          ) : null}
         </div>
       ) : null}
     </DialogContent>
+  );
+}
+
+function AddressCheckPanel({
+  policyOk,
+  walletName,
+  disabled,
+}: {
+  policyOk: boolean;
+  walletName: string;
+  disabled: boolean;
+}) {
+  const { t, locale } = useT();
+  const root = useStudio((s) => s.root);
+  const keys = useStudio((s) => s.keys);
+  const reuseKeys = useStudio((s) => s.reuseKeys);
+  const network = useStudio((s) => s.network);
+  const getWalletAddress = useHardware((s) => s.getWalletAddress);
+  const nodeStatus = useBitcoind((s) => s.status);
+  const nodeDemo = useBitcoind((s) => s.demo);
+  const probe = useBitcoind((s) => s.probe);
+  const [from, setFrom] = useState(0);
+  const [to, setTo] = useState(0);
+  const [receive, setReceive] = useState(true);
+  const [change, setChange] = useState(true);
+  const [verify, setVerify] = useState(true);
+  const [verifyAll, setVerifyAll] = useState(false);
+  const [rows, setRows] = useState<AddressCheckRow[]>([]);
+  const [working, setWorking] = useState<string | null>(null);
+  const [coreBanner, setCoreBanner] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
+
+  const bip = useMemo(
+    () => (root ? compileBip388(root, keys, walletName, reuseKeys) : null),
+    [root, keys, walletName, reuseKeys],
+  );
+  const compiled = useMemo(
+    () => (root ? compileDescriptorCached(root, keys, reuseKeys) : null),
+    [root, keys, reuseKeys],
+  );
+
+  async function run() {
+    if (!bip?.ok || !compiled?.ok) {
+      toast.error(bip?.error ?? compiled?.error ?? t("export.none"));
+      return;
+    }
+    const range = clampIndexRange(from, to);
+    setFrom(range.from);
+    setTo(range.to);
+    const kinds: AddressKind[] = [];
+    if (receive) kinds.push("receive");
+    if (change) kinds.push("change");
+    if (!kinds.length) {
+      toast.error(t("hw.checkNone"));
+      return;
+    }
+
+    const next: AddressCheckRow[] = [];
+    let coreMsg: string | null = null;
+    const node = useBitcoind.getState();
+    const liveCore = node.status === "ready" && !node.demo;
+    if (node.status !== "ready") coreMsg = t("node.err.notConnected");
+    else if (node.demo) coreMsg = t("node.err.demoDerive");
+    else if (!chainMatches(network, node.probe?.chain)) {
+      coreMsg = t("node.err.chain", { ui: network, node: node.probe?.chain || "?" });
+    }
+
+    const cfg = {
+      url: node.url,
+      username: node.username,
+      password: node.password,
+    };
+
+    for (const kind of kinds) {
+      const ch = kind === "change" ? 1 : 0;
+      const branch = descriptorForBranch(compiled.descriptor, ch);
+      let coreAddrs: string[] = [];
+      let branchCoreErr: string | undefined;
+      if (liveCore && !coreMsg) {
+        try {
+          coreAddrs = await deriveAddressRange(cfg, branch, range.from, range.to);
+        } catch (e) {
+          branchCoreErr = localizeMessage(locale, e instanceof Error ? e.message : "node.err.derive");
+        }
+      } else if (coreMsg) {
+        branchCoreErr = coreMsg;
+      }
+
+      for (let i = range.from; i <= range.to; i++) {
+        const path = `${ch}/${i}`;
+        setWorking(t("hw.checkWorking", { path }));
+        const display = verify && (verifyAll || i === range.from);
+        let ledger = "";
+        let ledgerError: string | undefined;
+        try {
+          ledger = await getWalletAddress({
+            policy: bip.policy,
+            change: ch,
+            index: i,
+            display,
+          });
+        } catch (e) {
+          ledgerError = localizeMessage(locale, e instanceof Error ? e.message : "hw.err.generic");
+        }
+        const core = coreAddrs[i - range.from] ?? "";
+        const coreError = !core ? branchCoreErr : undefined;
+        next.push({
+          index: i,
+          kind,
+          path,
+          ledger,
+          core,
+          match: Boolean(ledger && core && ledger === core),
+          ledgerError,
+          coreError,
+        });
+        setRows([...next]);
+      }
+    }
+    setWorking(null);
+    setCoreBanner(coreMsg);
+    setDone(true);
+    setRows(next);
+    if (allRequestedMatch(next)) toast.success(t("hw.checkOk"));
+    else toast.error(t("hw.checkFail"));
+  }
+
+  const ok = done && allRequestedMatch(rows);
+
+  return (
+    <div className="space-y-2 rounded-xl border border-border bg-elevated/40 px-3 py-2.5">
+      <p className="text-xs text-fg">{t("hw.checkTitle")}</p>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-1">
+          <Label htmlFor="hw-from">{t("hw.checkFrom")}</Label>
+          <Input
+            id="hw-from"
+            type="number"
+            min={0}
+            value={from}
+            onChange={(e) => setFrom(Number(e.target.value))}
+            className="font-mono text-xs"
+          />
+        </div>
+        <div className="space-y-1">
+          <Label htmlFor="hw-to">{t("hw.checkTo")}</Label>
+          <Input
+            id="hw-to"
+            type="number"
+            min={0}
+            value={to}
+            onChange={(e) => setTo(Number(e.target.value))}
+            className="font-mono text-xs"
+          />
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-3 text-xs">
+        <label className="flex items-center gap-1.5">
+          <input type="checkbox" checked={receive} onChange={(e) => setReceive(e.target.checked)} />
+          {t("hw.checkReceive")}
+        </label>
+        <label className="flex items-center gap-1.5">
+          <input type="checkbox" checked={change} onChange={(e) => setChange(e.target.checked)} />
+          {t("hw.checkChange")}
+        </label>
+      </div>
+      <label className="flex items-center gap-1.5 text-xs">
+        <input type="checkbox" checked={verify} onChange={(e) => setVerify(e.target.checked)} />
+        {t("hw.checkVerify")}
+      </label>
+      {verify ? (
+        <label className="flex items-center gap-1.5 text-xs">
+          <input type="checkbox" checked={verifyAll} onChange={(e) => setVerifyAll(e.target.checked)} />
+          {t("hw.checkVerifyAll")}
+        </label>
+      ) : null}
+      <p className="text-2xs text-fg-muted">{t("hw.checkVerifyHint")}</p>
+      <p className="text-2xs text-fg-subtle">
+        {nodeStatus === "ready" && !nodeDemo
+          ? probe?.subversion || probe?.chain || "Bitcoin Core"
+          : t("node.err.notConnected")}
+      </p>
+      <Button
+        size="sm"
+        disabled={disabled || !policyOk || Boolean(working)}
+        onClick={() => void run()}
+      >
+        {t("hw.checkRun")}
+      </Button>
+      {working ? <p className="text-2xs text-fg-muted">{working}</p> : null}
+      {coreBanner ? <p className="text-2xs text-warn">{coreBanner}</p> : null}
+      {done && rows.length ? (
+        <p className={`text-xs ${ok ? "text-ok" : "text-danger"}`}>
+          {ok ? t("hw.checkOk") : t("hw.checkFail")}
+        </p>
+      ) : null}
+      {rows.length ? (
+        <div className="max-h-56 overflow-auto">
+          <table className="w-full text-left font-mono text-2xs">
+            <thead className="text-fg-subtle">
+              <tr>
+                <th className="pr-2 font-normal">{t("hw.checkColIndex")}</th>
+                <th className="pr-2 font-normal">{t("hw.checkColKind")}</th>
+                <th className="pr-2 font-normal">{t("hw.checkColLedger")}</th>
+                <th className="pr-2 font-normal">{t("hw.checkColCore")}</th>
+                <th className="font-normal">{t("hw.checkColMatch")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={`${r.kind}-${r.index}`} className={r.match ? "text-fg" : "text-danger"}>
+                  <td className="py-0.5 pr-2 align-top">{r.index}</td>
+                  <td className="py-0.5 pr-2 align-top">{r.kind === "change" ? t("hw.change") : t("hw.receive")}</td>
+                  <td className="max-w-[9rem] py-0.5 pr-2 align-top break-all">
+                    {r.ledgerError || r.ledger || "—"}
+                  </td>
+                  <td className="max-w-[9rem] py-0.5 pr-2 align-top break-all">
+                    {r.coreError || r.core || "—"}
+                  </td>
+                  <td className="py-0.5 align-top">{r.match ? t("hw.checkMatch") : t("hw.checkMiss")}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : null}
+    </div>
   );
 }
 

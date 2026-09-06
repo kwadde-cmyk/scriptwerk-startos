@@ -66,13 +66,6 @@ export function validatePolicy(root: MsNode | null, locale: Locale = "de"): Issu
     });
   }
 
-  if (keys.length >= 5) {
-    issues.push({
-      level: "info",
-      message: t(locale, "val.manyKeys", { n: keys.length }),
-    });
-  }
-
   const depth = treeDepth(root);
   if (depth >= 6) {
     issues.push({

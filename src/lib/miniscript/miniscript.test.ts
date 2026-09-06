@@ -58,6 +58,14 @@ import {
   walletPolicyToDescriptor,
 } from "./bip388.ts";
 import { defaultAccountPath, formatOrigin, normalizeHwPath, pathToDerivation } from "../hw/types.ts";
+import {
+  allRequestedMatch,
+  chainMatches,
+  clampIndexRange,
+  descriptorForBranch,
+  policyCacheKey,
+} from "../hw/address-check.ts";
+import { validatePolicy } from "./validate.ts";
 import { openDemoSession } from "../hw/demo.ts";
 
 const XPUB =
@@ -1024,6 +1032,55 @@ describe("hardware paths", () => {
       template: "wsh(pk(@0/**))",
       keys: [],
     });
-    assert.equal(hmac.hmac, "demo");
+    assert.equal(hmac.hmac, "00".repeat(32));
+    const addr = await session.getWalletAddress({
+      policy: { name: "Scriptwerk", template: "wsh(pk(@0/**))", keys: [] },
+      hmac: hmac.hmac!,
+      change: 0,
+      index: 0,
+      display: false,
+    });
+    assert.match(addr, /^bc1qswdemo/);
   });
 });
+
+describe("ledger address check helpers", () => {
+  it("splits multipath descriptors into receive and change for Core", () => {
+    const raw = descsumCreate(`wsh(pk([deadbeef/48'/0'/0'/2']${XPUB}/<0;1>/*))`);
+    const recv = descriptorForBranch(raw, 0);
+    const chg = descriptorForBranch(raw, 1);
+    assert.match(stripChecksum(recv), /\/0\/\*/);
+    assert.match(stripChecksum(chg), /\/1\/\*/);
+    assert.doesNotMatch(stripChecksum(recv), /<0;1>/);
+    assert.equal(descsumCheck(recv), true);
+    assert.equal(descsumCheck(chg), true);
+  });
+
+  it("keeps policy HMAC keys distinct when the name changes", () => {
+    const a = policyCacheKey({ name: "Scriptwerk", template: "wsh(pk(@0/**))", keys: [] });
+    const b = policyCacheKey({ name: "Other", template: "wsh(pk(@0/**))", keys: [] });
+    assert.notEqual(a, b);
+  });
+
+  it("does not treat a mixed table as a match", () => {
+    assert.equal(
+      allRequestedMatch([
+        { index: 0, kind: "receive", path: "0/0", ledger: "a", core: "a", match: true },
+        { index: 1, kind: "receive", path: "0/1", ledger: "a", core: "b", match: false },
+      ]),
+      false,
+    );
+    assert.equal(allRequestedMatch([]), false);
+    assert.deepEqual(clampIndexRange(-3, 99), { from: 0, to: 19 });
+    assert.equal(chainMatches("mainnet", "main"), true);
+    assert.equal(chainMatches("mainnet", "test"), false);
+    assert.equal(chainMatches("testnet", "signet"), false);
+  });
+
+  it("does not warn just because a policy has many keys", () => {
+    const { node } = parseAny("multi(2,A,B,C,D,E,F)");
+    const issues = validatePolicy(node, "en");
+    assert.equal(issues.some((i) => /5 keys|placeholders|manyKeys/i.test(i.message)), false);
+  });
+});
+

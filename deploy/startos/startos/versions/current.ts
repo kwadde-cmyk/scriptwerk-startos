@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.9:0',
+  version: '0.1.10:0',
   releaseNotes: {
     en_US:
-      'File export/import round-trips key display names (NANO-S etc.) via JSON, keys.txt, and comments on descriptor/BSMS.',
+      'After Ledger policy registration, derive receive/change addresses and compare them with Bitcoin Core. HMAC stays in this session only. Removed the generic “too many keys” Ledger warning.',
     de_DE:
-      'Datei-Export/Import nimmt Key-Namen (NANO-S usw.) mit: JSON, keys.txt und Kommentare in Descriptor/BSMS.',
+      'Nach Ledger-Policy-Registrierung Adressen ableiten und mit Bitcoin Core abgleichen. HMAC nur in dieser Session. Pauschale Key-Anzahl-Warnung entfernt.',
     es_ES:
-      'Exportación e importación de archivos conservan los nombres de las claves.',
+      'Tras registrar la política en Ledger, deriva direcciones y las compara con Bitcoin Core. HMAC solo de sesión. Sin aviso genérico por número de claves.',
     pl_PL:
-      'Eksport i import plików zachowuje nazwy kluczy.',
+      'Po rejestracji polityki na Ledgerze porównanie adresów z Bitcoin Core. HMAC tylko w sesji. Usunięto ostrzeżenie o liczbie kluczy.',
     fr_FR:
-      'Export/import fichiers conserve les noms des clés.',
+      'Après enregistrement Ledger, dérivation d’adresses et comparaison avec Bitcoin Core. HMAC de session uniquement. Plus d’avertissement générique sur le nombre de clés.',
   },
   migrations: {
     up: async () => {},

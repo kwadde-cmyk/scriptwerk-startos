@@ -84,6 +84,19 @@ export async function openLedgerSession(): Promise<HwSession> {
         throw new Error(hwErrorMessage(err));
       }
     },
+    async getWalletAddress({ policy, hmac, change, index, display }) {
+      try {
+        const ready = ledgerPolicyReady(policy);
+        if (!ready.ok) throw new Error(ready.error);
+        const keys = ready.policy.keys.map((k) => k.origin);
+        if (keys.some((o) => !o)) throw new Error("hw.err.needKeys");
+        const wp = new WalletPolicy(ready.policy.name, ready.policy.template, keys);
+        const hmacBuf = Buffer.from(hmac, "hex");
+        return await app.getWalletAddress(wp, hmacBuf, change, index, display);
+      } catch (err) {
+        throw new Error(hwErrorMessage(err));
+      }
+    },
     async close() {
       try {
         await transport.close();

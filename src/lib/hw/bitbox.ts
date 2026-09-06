@@ -71,6 +71,9 @@ export async function openBitBoxSession(
         throw new Error(hwErrorMessage(err));
       }
     },
+    async getWalletAddress() {
+      throw new Error("hw.err.ledgerOnly");
+    },
     async close() {
       try {
         device.close();

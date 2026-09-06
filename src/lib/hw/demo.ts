@@ -50,7 +50,15 @@ export function openDemoSession(kind: HwKind): HwSession {
     },
     async registerPolicy(_policy: Bip388Policy) {
       await wait(700);
-      return { hmac: "demo" };
+      return { hmac: "00".repeat(32) };
+    },
+    async getWalletAddress({ policy, change, index }) {
+      await wait(180);
+      let h = 2166136261;
+      const tag = `${policy.name}|${policy.template}|${change}|${index}`;
+      for (let i = 0; i < tag.length; i++) h = Math.imul(h ^ tag.charCodeAt(i), 16777619);
+      const hex = (h >>> 0).toString(16).padStart(8, "0");
+      return `bc1qswdemo${change}${String(index).padStart(3, "0")}${hex}xxxxxxxx`;
     },
     async close() {},
   };
