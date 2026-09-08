@@ -67,6 +67,7 @@ import {
   descriptorForBranch,
   isHmacHex,
   policyCacheKey,
+  watchOnlyKeys,
 } from "../hw/address-check.ts";
 import { validatePolicy } from "./validate.ts";
 import { openDemoSession } from "../hw/demo.ts";
@@ -1111,6 +1112,24 @@ describe("ledger address check helpers", () => {
       ),
       "m/48'/0'/0'/2'/1/3",
     );
+    const wo = watchOnlyKeys({
+      name: "Scriptwerk",
+      template: "wsh(pk(@0/**))",
+      keys: [
+        {
+          index: 0,
+          name: "A",
+          label: "A-Master",
+          fingerprint: "deadbeef",
+          derivation: "48'/0'/0'/2'",
+          xpub: XPUB,
+          origin: `[deadbeef/48'/0'/0'/2']${XPUB}`,
+        },
+      ],
+    });
+    assert.equal(wo.length, 1);
+    assert.equal(wo[0]!.xpub, XPUB);
+    assert.equal(wo[0]!.origin.startsWith("[deadbeef/"), true);
   });
 
   it("does not warn just because a policy has many keys", () => {

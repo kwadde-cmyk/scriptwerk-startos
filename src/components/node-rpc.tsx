@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useT } from "@/lib/use-t";
 import { localizeMessage } from "@/lib/i18n";
+import { CopyButton } from "@/components/copy-button";
 import { Loader2, Server } from "lucide-react";
 import { toast } from "sonner";
 import { defaultRpcPort, hostProxyAvailable, hostProxyInfo, isLanIpUrl, looksLikeStartos, normalizeRpcUrl, setUseHostProxy } from "@/lib/bitcoind/rpc";
@@ -477,22 +478,31 @@ function shortenBtc(s: string): string {
   return s.length > 16 ? `${s.slice(0, 8)}…${s.slice(-6)}` : s;
 }
 
-function ClipText({ value, className }: { value: string; className?: string }) {
+function ClipText({ value, className, copy }: { value: string; className?: string; copy?: boolean }) {
   const { t } = useT();
   const [open, setOpen] = useState(false);
   const short = shortenDisplay(value);
   if (!value) return <span className={className}>—</span>;
-  if (short === value) return <span className={className}>{value}</span>;
+  const body =
+    short === value ? (
+      <span className={className}>{value}</span>
+    ) : (
+      <button
+        type="button"
+        className={`max-w-full text-left font-mono break-all ${className ?? ""}`}
+        onClick={() => setOpen((v) => !v)}
+        title={open ? t("node.addr.less") : t("node.addr.more")}
+        aria-expanded={open}
+      >
+        {open ? value : short}
+      </button>
+    );
+  if (!copy) return body;
   return (
-    <button
-      type="button"
-      className={`max-w-full text-left font-mono break-all ${className ?? ""}`}
-      onClick={() => setOpen((v) => !v)}
-      title={open ? t("node.addr.less") : t("node.addr.more")}
-      aria-expanded={open}
-    >
-      {open ? value : short}
-    </button>
+    <span className="inline-flex max-w-full items-start gap-0.5">
+      {body}
+      <CopyButton value={value} />
+    </span>
   );
 }
 
@@ -569,13 +579,13 @@ function CheckResult() {
             : t("node.check.csDiffer")}
       </p>
       <p className="mt-1 max-h-24 overflow-y-auto">
-        <ClipText value={lastCheck.descriptor} className="text-2xs text-fg-muted" />
+        <ClipText value={lastCheck.descriptor} className="text-2xs text-fg-muted" copy />
       </p>
       {lastCheck.addresses.length ? (
         <ul className="mt-2 space-y-0.5">
           {lastCheck.addresses.map((a) => (
             <li key={a}>
-              <ClipText value={a} className="text-2xs text-fg-subtle" />
+              <ClipText value={a} className="text-2xs text-fg-subtle" copy />
             </li>
           ))}
         </ul>

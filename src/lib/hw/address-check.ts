@@ -19,6 +19,30 @@ export function policyCacheKey(policy: Bip388Policy): string {
   return `${policy.name}\n${policy.template}\n${keys}`;
 }
 
+export interface WatchOnlyKey {
+  name: string;
+  label: string;
+  fingerprint: string;
+  xpub: string;
+  origin: string;
+}
+
+/** Cosigner account xpubs. The wallet itself has no single xpub — watch-only is the descriptor. */
+export function watchOnlyKeys(policy: Bip388Policy): WatchOnlyKey[] {
+  return policy.keys
+    .filter((k) => k.xpub.trim())
+    .map((k) => {
+      const raw = k.xpub.replace(/^\[.*?\]/, "").trim();
+      return {
+        name: k.name,
+        label: k.label || k.name,
+        fingerprint: k.fingerprint.replace(/^#/, "").slice(0, 8).toLowerCase(),
+        xpub: raw,
+        origin: k.origin || k.xpub,
+      };
+    });
+}
+
 export function isHmacHex(hex: string | null | undefined): hex is string {
   return Boolean(hex && /^[0-9a-f]{64}$/i.test(hex.trim()));
 }

@@ -33,6 +33,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useT } from "@/lib/use-t";
+import { CopyButton, Copyable } from "@/components/copy-button";
 import { KeyRound, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -194,7 +195,7 @@ function KeyTile({
 
   if (!expanded) {
     return (
-      <div className={`flex min-h-10 w-full items-stretch gap-1 rounded-md border ${tileClass}`}>
+      <div className={`flex min-h-10 w-full items-stretch gap-0.5 rounded-md border ${tileClass}`}>
         <button
           type="button"
           data-key-tile={entry.name}
@@ -212,6 +213,7 @@ function KeyTile({
           <span className={`shrink-0 font-mono text-2xs ${needsAction ? "text-danger" : "text-fg-subtle"}`}>{role}</span>
           {childTotal > 0 ? <NestedKeyStack present={childPresent} total={childTotal} compact /> : null}
         </button>
+        {fp ? <CopyButton value={fp} className="self-center" /> : null}
         <button
           type="button"
           aria-label={t("keys.delete")}
@@ -254,7 +256,10 @@ function KeyTile({
       >
         <Trash2 className="size-3.5" />
       </button>
-      <p className="mt-0.5 font-mono text-2xs text-fg-muted">{fp || "—"}</p>
+      <p className="mt-0.5 inline-flex items-center gap-0.5 font-mono text-2xs text-fg-muted">
+        {fp || "—"}
+        {fp ? <CopyButton value={fp} /> : null}
+      </p>
       <ul className="mt-2 space-y-1.5">
         <li className="rounded-md border border-border/80 bg-elevated/40 px-2 py-1.5">
           <p className="font-mono text-2xs text-fg-subtle">{role}</p>
@@ -391,14 +396,17 @@ function XpubLine({ xpub }: { xpub: string }) {
   const { t } = useT();
   if (!xpub.trim()) return <p className="font-mono text-2xs text-fg-muted">—</p>;
   return (
-    <button
-      type="button"
-      title={t("keys.xpubTap")}
-      onClick={() => setOpen((v) => !v)}
-      className="w-full break-all text-left font-mono text-2xs text-fg-muted hover:text-fg"
-    >
-      {open ? xpub : shortXpub(xpub)}
-    </button>
+    <div className="flex items-start gap-0.5">
+      <button
+        type="button"
+        title={t("keys.xpubTap")}
+        onClick={() => setOpen((v) => !v)}
+        className="min-w-0 flex-1 break-all text-left font-mono text-2xs text-fg-muted hover:text-fg"
+      >
+        {open ? xpub : shortXpub(xpub)}
+      </button>
+      <CopyButton value={xpub} />
+    </div>
   );
 }
 
@@ -580,10 +588,12 @@ function KeyImportDialog({
     <Dialog open={open} onOpenChange={openDetailsFrom}>
       <DialogContent className="flex max-h-[min(720px,calc(100dvh-2rem))] w-[min(720px,calc(100vw-1rem))] flex-col overflow-hidden">
         <DialogHeader>
-          <DialogTitle>
+          <DialogTitle className="flex flex-wrap items-center gap-1">
             {entry.note.trim() || t("keys.unnamed")}
-            <span className="ml-2 font-mono text-sm font-normal text-fg-muted">
-              {entry.fingerprint || "—"} · {keyRoleLabel(entry.name)}
+            <span className="ml-2 inline-flex items-center font-mono text-sm font-normal text-fg-muted">
+              {entry.fingerprint || "—"}
+              {entry.fingerprint ? <CopyButton value={entry.fingerprint} /> : null}
+              <span className="ml-1">· {keyRoleLabel(entry.name)}</span>
             </span>
           </DialogTitle>
           <DialogDescription>{t("keys.dialogBlurb")}</DialogDescription>
@@ -608,9 +618,14 @@ function KeyImportDialog({
                 onChange={(e) => updateKey(entry.id, { note: e.target.value })}
               />
             </Field>
-            <p className="font-mono text-2xs text-fg-muted">
+            <p className="inline-flex flex-wrap items-center gap-0.5 font-mono text-2xs text-fg-muted">
               {t("keys.role")}: {keyRoleLabel(entry.name)}
-              {entry.fingerprint ? ` · ${entry.fingerprint}` : ""}
+              {entry.fingerprint ? (
+                <>
+                  <span> · {entry.fingerprint}</span>
+                  <CopyButton value={entry.fingerprint} />
+                </>
+              ) : null}
             </p>
             <XpubLine xpub={entry.xpub} />
             {reuseKeys && needs.some((n) => n.branch) ? <ReusePlan needs={needs} /> : null}
@@ -664,8 +679,13 @@ function KeyImportDialog({
                 ) : null}
               </div>
               {preview?.ok ? (
-                <p className="font-mono text-2xs text-fg-muted">
-                  {preview.key.fingerprint || "—"} · {preview.key.derivation || "—"} · {t("keys.draftHint")}
+                <p className="inline-flex flex-wrap items-center gap-1 font-mono text-2xs text-fg-muted">
+                  {preview.key.fingerprint ? (
+                    <Copyable value={preview.key.fingerprint} textClassName="text-2xs text-fg-muted" />
+                  ) : (
+                    "—"
+                  )}
+                  <span>· {preview.key.derivation || "—"} · {t("keys.draftHint")}</span>
                 </p>
               ) : null}
             </ImportPane>

@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.11:0',
+  version: '0.1.12:0',
   releaseNotes: {
     en_US:
-      'After Ledger policy registration, derive receive/change addresses and compare them with Bitcoin Core. HMAC stays in this session only. Removed the generic “too many keys” Ledger warning.',
+      'Watch-only is the descriptor plus cosigner xpubs in the address check. Copy buttons on addresses and fingerprints. BitBox address comparison same as Ledger.',
     de_DE:
-      'Nach Ledger-Policy-Registrierung Adressen ableiten und mit Bitcoin Core abgleichen. HMAC nur in dieser Session. Pauschale Key-Anzahl-Warnung entfernt.',
+      'Watch-only ist der Descriptor plus Cosigner-xpubs im Adressabgleich. Kopieren für Adressen und Fingerprints. BitBox-Abgleich wie Ledger.',
     es_ES:
-      'Tras registrar la política en Ledger, deriva direcciones y las compara con Bitcoin Core. HMAC solo de sesión. Sin aviso genérico por número de claves.',
+      'Watch-only es el descriptor más xpubs de cosignatarios. Botones de copiar en direcciones y huellas. Comparación BitBox como Ledger.',
     pl_PL:
-      'Po rejestracji polityki na Ledgerze porównanie adresów z Bitcoin Core. HMAC tylko w sesji. Usunięto ostrzeżenie o liczbie kluczy.',
+      'Watch-only to deskryptor plus xpub współsygnatariuszy. Kopiowanie adresów i odcisków. Porównanie BitBox jak Ledger.',
     fr_FR:
-      'Après enregistrement Ledger, dérivation d’adresses et comparaison avec Bitcoin Core. HMAC de session uniquement. Plus d’avertissement générique sur le nombre de clés.',
+      'Watch-only = descripteur plus xpubs des cosignataires. Copie des adresses et empreintes. Comparaison BitBox comme Ledger.',
   },
   migrations: {
     up: async () => {},

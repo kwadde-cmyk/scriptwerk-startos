@@ -7,6 +7,7 @@ import {
   clampIndexRange,
   descriptorForBranch,
   policyCacheKey,
+  watchOnlyKeys,
   type AddressCheckRow,
   type AddressKind,
 } from "@/lib/hw/address-check";
@@ -28,6 +29,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/lib/use-t";
 import { localizeMessage } from "@/lib/i18n";
+import { CopyButton, Copyable } from "@/components/copy-button";
 import { Usb } from "lucide-react";
 import { toast } from "sonner";
 
@@ -176,7 +178,7 @@ function HardwareDialogBody() {
               {label}
               {demo ? <span className="ml-2 text-2xs text-fg-subtle uppercase">{t("hw.demo")}</span> : null}
             </p>
-            <p className="font-mono text-2xs text-fg-muted">{fingerprint || "—"}</p>
+            <Copyable value={fingerprint} textClassName="text-2xs text-fg-muted" />
           </div>
 
           <div className="space-y-1">
@@ -392,6 +394,7 @@ function AddressCheckPanel({
   }
 
   const ok = done && allRequestedMatch(rows);
+  const watchKeys = bip?.ok ? watchOnlyKeys(bip.policy) : [];
 
   return (
     <div className="space-y-2 rounded-xl border border-border bg-elevated/40 px-3 py-2.5">
@@ -441,6 +444,39 @@ function AddressCheckPanel({
         </label>
       ) : null}
       <p className="text-2xs text-fg-muted">{t("hw.checkVerifyHint")}</p>
+      {compiled?.ok ? (
+        <div className="space-y-1.5 rounded-lg border border-border bg-surface/60 px-2.5 py-2">
+          <p className="text-2xs font-medium tracking-[0.14em] text-fg-subtle uppercase">{t("hw.watchTitle")}</p>
+          <p className="text-2xs text-pretty text-fg-muted">{t("hw.watchBlurb")}</p>
+          <div className="flex items-start gap-1">
+            <p className="min-w-0 flex-1 font-mono text-2xs break-all text-fg-muted">
+              {compiled.descriptor.length > 72
+                ? `${compiled.descriptor.slice(0, 36)}…${compiled.descriptor.slice(-18)}`
+                : compiled.descriptor}
+            </p>
+            <CopyButton value={compiled.descriptor} label={t("hw.watchCopyDesc")} />
+          </div>
+          {watchKeys.length ? (
+            <ul className="space-y-1.5">
+              <li className="text-2xs font-medium tracking-[0.14em] text-fg-subtle uppercase">{t("hw.watchKeys")}</li>
+              {watchKeys.map((k) => (
+                <li key={`${k.name}-${k.fingerprint}`} className="space-y-0.5">
+                  <div className="flex min-w-0 items-center gap-1">
+                    <span className="shrink-0 font-mono text-2xs text-fg">{k.label || k.name}</span>
+                    <Copyable value={k.fingerprint} textClassName="text-2xs text-fg-muted" />
+                  </div>
+                  <div className="flex items-start gap-1">
+                    <span className="min-w-0 flex-1 font-mono text-2xs break-all text-fg-muted">
+                      {k.xpub.length > 24 ? `${k.xpub.slice(0, 12)}…${k.xpub.slice(-8)}` : k.xpub}
+                    </span>
+                    <CopyButton value={k.xpub} label={t("hw.watchCopyXpub")} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : null}
       <p className="text-2xs text-fg-subtle">
         {nodeStatus === "ready" && !nodeDemo
           ? probe?.subversion || probe?.chain || "Bitcoin Core"
@@ -482,11 +518,17 @@ function AddressCheckPanel({
                 <tr key={`${r.kind}-${r.index}`} className={r.match ? "text-fg" : "text-danger"}>
                   <td className="py-0.5 pr-2 align-top">{r.index}</td>
                   <td className="py-0.5 pr-2 align-top">{r.kind === "change" ? t("hw.change") : t("hw.receive")}</td>
-                  <td className="max-w-[9rem] py-0.5 pr-2 align-top break-all">
-                    {r.ledgerError || r.ledger || "—"}
+                  <td className="max-w-[9rem] py-0.5 pr-2 align-top">
+                    <span className="inline-flex max-w-full items-start gap-0.5">
+                      <span className="min-w-0 break-all">{r.ledgerError || r.ledger || "—"}</span>
+                      {r.ledger ? <CopyButton value={r.ledger} /> : null}
+                    </span>
                   </td>
-                  <td className="max-w-[9rem] py-0.5 pr-2 align-top break-all">
-                    {r.coreError || r.core || "—"}
+                  <td className="max-w-[9rem] py-0.5 pr-2 align-top">
+                    <span className="inline-flex max-w-full items-start gap-0.5">
+                      <span className="min-w-0 break-all">{r.coreError || r.core || "—"}</span>
+                      {r.core ? <CopyButton value={r.core} /> : null}
+                    </span>
                   </td>
                   <td className="py-0.5 align-top">{r.match ? t("hw.checkMatch") : t("hw.checkMiss")}</td>
                 </tr>
