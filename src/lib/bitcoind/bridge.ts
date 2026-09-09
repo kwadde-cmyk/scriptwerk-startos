@@ -1,4 +1,5 @@
 import type { DiagReport } from "./diagnose.ts";
+import { splitCookie } from "./rpc.ts";
 
 type Pending = {
   resolve: (value: unknown) => void;
@@ -46,7 +47,17 @@ export function dropBridge(): void {
   pending.clear();
 }
 
-export function rpcViaBridge(method: string, params: unknown[] = []): Promise<unknown> {
+export function setBridgeAuth(user: string, pass: string): void {
+  const a = splitCookie(user, pass);
+  auth = { user: a.username, pass: a.password };
+}
+
+export function rpcViaBridge(
+  method: string,
+  params: unknown[] = [],
+  creds?: { user: string; pass: string },
+): Promise<unknown> {
+  if (creds) setBridgeAuth(creds.user, creds.pass);
   if (!target || target.closed) return Promise.reject(new Error("node.err.bridgeGone"));
   const id = seq++;
   const win = target;
@@ -104,6 +115,11 @@ function headers(){
   if(auth&&(auth.user||auth.pass))h.Authorization="Basic "+b64(String(auth.user||"").trim()+":"+String(auth.pass||"").trim());
   return h;
 }
+function who(){
+  var u=auth&&auth.user?String(auth.user).trim():"";
+  var n=auth&&auth.pass?String(auth.pass).length:0;
+  return (u||"(kein Nutzer)")+" · Passwort "+n+" Zeichen";
+}
 function post(method,params,id){
   var body=JSON.stringify({jsonrpc:"1.0",id:id,method:String(method||""),params:params||[]});
   return fetch(rpc,{method:"POST",headers:headers(),body:body,credentials:"omit",cache:"no-store",mode:"same-origin"})
@@ -116,8 +132,8 @@ function post(method,params,id){
     });
 }
 function packErr(pack){
-  var raw=(pack.text||"").replace(/\\s+/g," ").slice(0,220);
-  if(pack.status===401||pack.status===403) return "node.err.auth · HTTP "+pack.status+" "+raw;
+  var raw=(pack.text||"").replace(/\\s+/g," ").slice(0,180);
+  if(pack.status===401||pack.status===403) return "node.err.auth · HTTP "+pack.status+" · "+who()+(raw?" · "+raw:"");
   try{
     var j=JSON.parse(pack.text||"");
     if(j&&j.error&&j.error.message) return "HTTP "+pack.status+" · "+j.error.message;
@@ -140,7 +156,7 @@ window.addEventListener("message",function(e){
   if(e.data.type==="scriptwerk-hello"){
     auth=e.data.auth||auth;
     post("getnetworkinfo",[], "hello").then(function(pack){
-      paint("Selbsttest getnetworkinfo → HTTP "+pack.status+"\\n"+(pack.text||"").slice(0,280));
+      paint("Selbsttest getnetworkinfo → HTTP "+pack.status+"\\n"+who()+"\\n"+(pack.text||"").slice(0,240));
       go({type:"scriptwerk-bridge-probe",http:pack.status,text:(pack.text||"").slice(0,400)});
       sendResult("hello",pack);
     }).catch(function(err){
@@ -152,7 +168,7 @@ window.addEventListener("message",function(e){
   if(e.data.type!=="scriptwerk-rpc")return;
   if(e.data.auth) auth=e.data.auth;
   post(e.data.method,e.data.params,e.data.id).then(function(pack){
-    paint("RPC "+e.data.method+" → HTTP "+pack.status+"\\n"+(pack.text||"").slice(0,280));
+    paint("RPC "+e.data.method+" → HTTP "+pack.status+"\\n"+who()+"\\n"+(pack.text||"").slice(0,240));
     sendResult(e.data.id,pack);
   }).catch(function(err){
     paint(String(err));
@@ -182,7 +198,7 @@ export function watchBridge(
   onReady: () => void,
 ): () => void {
   targetOrigin = expectedOrigin;
-  auth = { user: creds.user, pass: creds.pass };
+  setBridgeAuth(creds.user, creds.pass);
   onReadyCb = onReady;
   if (listening) return () => {};
   listening = true;

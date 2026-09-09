@@ -184,7 +184,10 @@ export async function jsonRpc(
   params: unknown[] = [],
 ): Promise<unknown> {
   const { isBridgeOn, rpcViaBridge } = await import("./bridge.ts");
-  if (isBridgeOn()) return rpcViaBridge(method, params);
+  if (isBridgeOn()) {
+    const a = splitCookie(config.username, config.password);
+    return rpcViaBridge(method, params, { user: a.username, pass: a.password });
+  }
   if (await hostProxyAvailable()) return rpcViaHost(method, params, config);
   try {
     return await jsonRpcDirect(config, method, params);

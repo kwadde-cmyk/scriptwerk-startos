@@ -261,7 +261,7 @@ function NodeDialogBody() {
               disabled={authLocked}
               onChange={(e) => patch({ username: e.target.value })}
               onInput={(e) => patch({ username: e.currentTarget.value })}
-              placeholder={startos ? "scriptwerk" : "__cookie__"}
+              placeholder={startos ? t("node.userPlaceholder") : "__cookie__"}
               className="mt-1.5 font-mono text-xs"
             />
           </div>
@@ -282,7 +282,7 @@ function NodeDialogBody() {
           </div>
         </div>
         <p className="text-2xs text-pretty text-fg-muted">
-          {startos ? t("node.startos.help") : t("node.lanHelp")}
+          {proxyOn && canLock ? t("node.startos.help") : startos ? t("node.startos.rpcUser") : t("node.lanHelp")}
         </p>
         {ipWarn ? <p className="text-2xs text-pretty text-warn">{t("node.startos.ipWarn")}</p> : null}
 
@@ -338,6 +338,9 @@ function NodeDialogBody() {
           </p>
         ) : null}
         {errText && !trace ? <p className="text-xs text-danger">{errText}</p> : null}
+        {error && /node\.err\.auth|\b401\b/.test(error) ? (
+          <p className="text-2xs text-pretty text-warn">{t("node.err.authHint")}</p>
+        ) : null}
         {error === "node.err.blocked" || error === "node.err.cors" || (status !== "ready" && trace?.steps.some((s) => s.status === "fail")) ? (
           <Button type="button" variant="outline" size="sm" onClick={() => openNodeTab(nodeUrl)}>
             {t("node.openCert")}

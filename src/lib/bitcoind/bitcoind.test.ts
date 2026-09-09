@@ -63,6 +63,7 @@ describe("bitcoind rpc helpers", () => {
     assert.match(src, /scriptwerk-bridge-ready/);
     assert.match(src, /text\/plain/);
     assert.match(src, /scriptwerk-hello/);
+    assert.match(src, /Passwort/);
     assert.match(src, /postMessage\(d,"\*"\)/);
   });
 

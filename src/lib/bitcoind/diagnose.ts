@@ -65,7 +65,9 @@ export async function diagnoseNode(
   steps.push({
     id: "creds",
     status: auth.username && auth.password ? "ok" : "warn",
-    detail: auth.username ? `${auth.username} / ${auth.password ? "••••" : "kein Passwort"}` : "kein Nutzer",
+    detail: auth.username
+      ? `${auth.username} / ${auth.password ? `•••• (${auth.password.length})` : "kein Passwort"}`
+      : "kein Nutzer",
   });
 
   if (typeof navigator !== "undefined" && navigator.permissions?.query) {

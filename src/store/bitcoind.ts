@@ -84,6 +84,8 @@ export const useBitcoind = create<BitcoindState>()(
         if (creds.url !== url || creds.username !== username || creds.password !== password) {
           set(creds);
         }
+        const { setBridgeAuth } = await import("@/lib/bitcoind/bridge");
+        setBridgeAuth(creds.username, creds.password);
         set({ status: "connecting", error: null, demo: false, lastCheck: null, trace: null, bridge: "off", checking: false });
         const { hostProxyAvailable } = await import("@/lib/bitcoind/rpc");
         if (await hostProxyAvailable()) {
