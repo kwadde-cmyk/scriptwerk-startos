@@ -16,8 +16,10 @@ Desktop and mobile, English / German. The Bitcoin node may live on another machi
 - **Key reuse (Expert)** — Off: one fingerprint = one signing slot; import child keys A1, A2, … On: the same xpub with an incrementing derivation in several stages
 - **Checksums (Expert)** — key order and derivation `0/*` vs `<0;1>/*`; search for a known checksum
 - **Import / Export** — descriptor, miniscript, BSMS, Scriptwerk JSON, `scriptwerk.keys.txt` (names), BIP-388 for Ledger and BitBox (QR, file, USB). Files carry key names; QR stays comment-free.
+- **Saved policies** — named copies in this browser (same name overwrites). Load restores stages, keys and expert flags.
+- **Recovery sheet** — print stages, fingerprints, checksum and the watch-only descriptor. No seed, no HMAC.
 - **Bitcoin Core** — `getdescriptorinfo` via host proxy or node bridge. On StartOS: optional dependency; Scriptwerk creates RPC user `scriptwerk_xxxx` itself. Self-host + remote StartOS: use that RPC user (not the `scriptwerk` placeholder). HTTP 401 = wrong user/password; the diagnosis shows the name and password length.
-- **Hardware** — Ledger Bitcoin app and BitBox02 (WebHID), demo without a device. Register the policy, then compare receive/change addresses from the device with Bitcoin Core. Watch-only is the descriptor (not a single wallet xpub); cosigner account xpubs sit next to it. Copy icons on addresses and fingerprints. Ledger HMAC stays in this Scriptwerk session and does not replace Nunchuk/Sparrow. BitBox stores the policy on the device (firmware 9.15+). After a full match: check the same addresses in wallet software.
+- **Hardware** — Ledger Bitcoin app and BitBox02 (WebHID), demo without a device. Register the policy, then compare receive/change addresses from the device with Bitcoin Core. After a full match: **Check UTXOs** scans the node’s UTXO set (`scantxoutset`, default 20 receive + 20 change addresses, adjustable) without importing the policy into Core. Watch-only is the descriptor (not a single wallet xpub); cosigner account xpubs sit next to it. Copy icons on addresses and fingerprints. Ledger HMAC stays in this Scriptwerk session and does not replace Nunchuk/Sparrow. BitBox stores the policy on the device (firmware 9.15+). After a full match: check the same addresses in wallet software.
 - **Self-host** — one script for Debian / Raspberry Pi (Docker or Node)
 - **StartOS** — wrapper in `deploy/startos`, sideload the `.s9pk` or Community Registry
 
@@ -101,7 +103,7 @@ Or SSH tunnel: `ssh -L 8081:127.0.0.1:8081 pi@pi4` → `http://127.0.0.1:8081`
 
 ## Nginx in front
 
-If 80/443 already run a web server, leave Scriptwerk on 8081 and use `deploy/nginx-scriptwerk.conf` as a reverse proxy (adjust the port in the file).
+If 80/443 already run a web server, leave Scriptwerk on 8081. Reverse-proxy with `deploy/nginx-scriptwerk.conf`: `server_name` = the DNS name, TLS cert paths, `proxy_pass` to `127.0.0.1:8081`. Do **not** `listen 8081` and do **not** `root`/`alias` the git clone (that is a 403). No subpath — the app must be `/` of that vhost. Nginx Proxy Manager: scheme http, port 8081, turn off “Block common exploits” / access lists if you get 403. Log: `sudo tail /var/log/nginx/error.log`.
 
 ## Development
 
@@ -153,8 +155,10 @@ Desktop und Mobil, Deutsch/Englisch. Bitcoin-Node darf auf einer anderen Maschin
 - **Key-Wiederverwendung (Experte)** — Aus: ein Fingerprint = ein Signing-Slot, Child-Keys A1, A2 … importieren. An: derselbe xpub mit hochzählender Ableitung in mehreren Stufen
 - **Checksummen (Experte)** — Key-Reihenfolge und Ableitung `0/*` vs `<0;1>/*`; Suche nach bekannter Checksumme
 - **Import / Export** — Descriptor, Miniscript, BSMS, Scriptwerk-JSON, `scriptwerk.keys.txt` (Namen), BIP-388 für Ledger und BitBox (QR, Datei, USB). Dateien tragen Key-Namen mit; QR bleibt ohne Kommentare.
+- **Gespeicherte Policies** — benannte Kopien in diesem Browser (gleicher Name überschreibt). Laden stellt Stufen, Keys und Expert-Flags wieder her.
+- **Recovery-Blatt** — Stufen, Fingerprints, Checksumme und Watch-only-Descriptor drucken. Kein Seed, kein HMAC.
 - **Bitcoin Core** — `getdescriptorinfo` über Host-Proxy oder Node-Brücke. Auf StartOS: optionale Abhängigkeit; Scriptwerk legt RPC-Nutzer `scriptwerk_xxxx` selbst an. Self-host + Remote-StartOS: diesen RPC-Nutzer verwenden (nicht den Platzhalter `scriptwerk`). HTTP 401 = falscher Nutzer/Passwort; die Diagnose zeigt Name und Passwortlänge.
-- **Hardware** — Ledger Bitcoin-App und BitBox02 (WebHID), Demo ohne Gerät. Policy registrieren, dann Empfangs-/Wechsel-Adressen vom Gerät mit Bitcoin Core abgleichen. Watch-only ist der Descriptor (kein einzelner Wallet-xpub); daneben die Account-xpubs der Cosigner. Kopier-Icons an Adressen und Fingerprints. Ledger-HMAC nur in dieser Scriptwerk-Session, ersetzt nicht Nunchuk/Sparrow. BitBox speichert die Policy auf dem Gerät (Firmware 9.15+). Nach vollständigem Match: dieselben Adressen in der Walletsoftware prüfen.
+- **Hardware** — Ledger Bitcoin-App und BitBox02 (WebHID), Demo ohne Gerät. Policy registrieren, dann Empfangs-/Wechsel-Adressen vom Gerät mit Bitcoin Core abgleichen. Nach vollständigem Match: **Prüfe auf UTXOs** liest das UTXO-Set der Node (`scantxoutset`, Standard 20 Empfang + 20 Wechsel, einstellbar), ohne die Policy in Core zu importieren. Watch-only ist der Descriptor (kein einzelner Wallet-xpub); daneben die Account-xpubs der Cosigner. Kopier-Icons an Adressen und Fingerprints. Ledger-HMAC nur in dieser Scriptwerk-Session, ersetzt nicht Nunchuk/Sparrow. BitBox speichert die Policy auf dem Gerät (Firmware 9.15+). Nach vollständigem Match: dieselben Adressen in der Walletsoftware prüfen.
 - **Selbst hosten** — ein Skript für Debian / Raspberry Pi (Docker oder Node)
 - **StartOS** — Wrapper in `deploy/startos`, Sideload der `.s9pk` oder Community-Registry
 
@@ -238,7 +242,7 @@ Oder SSH-Tunnel: `ssh -L 8081:127.0.0.1:8081 pi@pi4` → `http://127.0.0.1:8081`
 
 ## Nginx davor
 
-Wenn 80/443 schon ein Webserver ist, Scriptwerk auf 8081 lassen und `deploy/nginx-scriptwerk.conf` als Reverse-Proxy (Port darin anpassen).
+Wenn 80/443 schon ein Webserver ist, Scriptwerk auf 8081 lassen. Reverse-Proxy: `deploy/nginx-scriptwerk.conf` — `server_name` = DNS-Name, Zertifikatpfade, `proxy_pass` auf `127.0.0.1:8081`. **Nicht** `listen 8081`, **nicht** `root`/`alias` aufs Git-Repo (das ist 403). Kein Unterpfad, die App muss `/` dieses vhosts sein. Nginx Proxy Manager: Scheme http, Port 8081, „Block common exploits“ / Access List aus bei 403. Log: `sudo tail /var/log/nginx/error.log`.
 
 ## Entwicklung
 

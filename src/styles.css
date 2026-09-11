@@ -58,6 +58,26 @@
     pointer-events: none !important;
   }
 
+  @media print {
+    html,
+    body {
+      background: #fff !important;
+      color: #111 !important;
+      overflow: visible !important;
+      height: auto !important;
+      max-width: none !important;
+    }
+    .no-print,
+    [data-sonner-toaster],
+    [data-radix-dialog-overlay],
+    [data-radix-dialog-content] {
+      display: none !important;
+    }
+    .print-root {
+      display: block !important;
+    }
+  }
+
   @media (max-width: 1023px) {
     [data-layout="desktop"] {
       display: none !important;

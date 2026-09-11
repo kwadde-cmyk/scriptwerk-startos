@@ -24,6 +24,7 @@ import { buildOperator, wrapNode, type BuildParams } from "@/lib/miniscript/oper
 import { parseAny } from "@/lib/miniscript/parser";
 import { compileStages, defaultStages, inferNesting, inferStages, isDerivedAlias, type MaxOlder, type Nesting, type Stage } from "@/lib/miniscript/stages";
 import { materializeWalletPolicy, parseScriptwerkBundle, parseWalletPolicy } from "@/lib/miniscript/bip388";
+import type { PolicySnapshot } from "@/lib/policy-library";
 import { isLocale, localizeMessage, t, type Locale } from "@/lib/i18n";
 
 type Snapshot = {
@@ -89,6 +90,7 @@ interface StudioState {
   mode: StudioMode;
   maxOlder: MaxOlder;
   locale: Locale;
+  policyName: string;
   importError: string | null;
   past: Snapshot[];
   future: Snapshot[];
@@ -98,6 +100,8 @@ interface StudioState {
   setMode: (mode: StudioMode) => void;
   setMaxOlder: (n: MaxOlder) => void;
   setLocale: (locale: Locale) => void;
+  setPolicyName: (name: string) => void;
+  loadSnapshot: (snap: PolicySnapshot) => void;
   select: (id: string | null) => void;
   selectStage: (id: string | null) => void;
   undo: () => void;
@@ -298,6 +302,7 @@ export const useStudio = create<StudioState>()(
       mode: "easy",
       maxOlder: 65534,
       locale: "de",
+      policyName: "Scriptwerk",
       importError: null,
       past: [],
       future: [],
@@ -357,6 +362,23 @@ export const useStudio = create<StudioState>()(
         mutate({ maxOlder });
       },
       setLocale: (locale) => set({ locale: isLocale(locale) ? locale : "de" }),
+      setPolicyName: (name) => set({ policyName: name.slice(0, 80) }),
+      loadSnapshot: (snap) => {
+        mutate({
+          keys: (snap.keys ?? []).map(normalizeKeyEntry),
+          root: snap.root,
+          stages: snap.stages ?? [],
+          network: snap.network === "testnet" ? "testnet" : "mainnet",
+          reuseKeys: Boolean(snap.reuseKeys),
+          nesting: snap.nesting === "early" ? "early" : "late",
+          mode: snap.mode === "expert" ? "expert" : "easy",
+          maxOlder: snap.maxOlder === 65535 ? 65535 : 65534,
+          policyName: (snap.policyName || get().policyName || "Scriptwerk").slice(0, 80),
+          selectedId: snap.root?.id ?? null,
+          selectedStageId: null,
+          importError: null,
+        });
+      },
       select: (selectedId) => set({ selectedId, selectedStageId: null }),
       selectStage: (id) =>
         set({
@@ -709,6 +731,7 @@ export const useStudio = create<StudioState>()(
         mode: s.mode,
         maxOlder: s.maxOlder,
         locale: s.locale,
+        policyName: s.policyName,
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<StudioState>;
@@ -719,6 +742,7 @@ export const useStudio = create<StudioState>()(
         if (p.maxOlder !== 65534 && p.maxOlder !== 65535) {
           next.maxOlder = next.stages.some((st) => st.delay >= 65535) ? 65535 : 65534;
         }
+        if (!next.policyName) next.policyName = "Scriptwerk";
         return next;
       },
       skipHydration: true,

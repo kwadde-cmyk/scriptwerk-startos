@@ -11,6 +11,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { defaultStages } from "@/lib/miniscript/stages";
 import { useStudio } from "@/store/studio";
 import { useT } from "@/lib/use-t";
+import { RecoveryPrintRoot } from "@/components/recovery-sheet";
 import { Toaster } from "sonner";
 import type { Locale } from "@/lib/i18n";
 
@@ -68,7 +69,7 @@ export function StudioShell() {
     <TooltipProvider delayDuration={200}>
       <KeyDatalist />
       <Toaster theme="dark" position="bottom-center" />
-      <div className="flex h-dvh w-full min-w-0 flex-col overflow-hidden bg-bg text-fg">
+      <div className="no-print flex h-dvh w-full min-w-0 flex-col overflow-hidden bg-bg text-fg">
         <header className="relative z-30 shrink-0 border-b border-border bg-[#0b0c0e]" style={{ touchAction: "manipulation" }}>
           <div className="relative h-20 w-full overflow-hidden sm:h-24 lg:h-[7.25rem]">
             <div className="pointer-events-none absolute inset-y-0 left-0 w-[6.75rem] overflow-hidden sm:w-36 lg:w-[11.5rem]">
@@ -114,6 +115,7 @@ export function StudioShell() {
           <MobileStudioTabs />
         </MountWhenVisible>
       </div>
+      <RecoveryPrintRoot />
     </TooltipProvider>
   );
 }

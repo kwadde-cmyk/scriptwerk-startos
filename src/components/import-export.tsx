@@ -23,6 +23,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { QrPreview, QrScanner, FilePick } from "@/components/qr-io";
+import { PolicyLibraryButton } from "@/components/policy-library";
+import { RecoverySheetButton } from "@/components/recovery-sheet";
 import { HardwareButton } from "@/components/hardware-usb";
 import { NodeButton } from "@/components/node-rpc";
 import { ScriptHighlight } from "@/components/script-view";
@@ -47,7 +49,8 @@ export function ImportExportBar() {
   const [open, setOpen] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [draft, setDraft] = useState("");
-  const [walletName, setWalletName] = useState("Scriptwerk");
+  const walletName = useStudio((s) => s.policyName);
+  const setWalletName = useStudio((s) => s.setPolicyName);
 
   const compiled = useMemo(
     () => compileDescriptorCached(root, keys, reuseKeys),
@@ -114,6 +117,8 @@ export function ImportExportBar() {
     <div className="flex flex-wrap items-center justify-end gap-1.5">
       <HardwareButton />
       <NodeButton />
+      <PolicyLibraryButton />
+      <RecoverySheetButton />
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>
           <Button variant="outline" size="icon" className="size-9" aria-label={t("header.import")}>

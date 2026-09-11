@@ -105,3 +105,78 @@ export function clampIndexRange(from: number, to: number): { from: number; to: n
   const b = Math.max(a, Math.min(a + 19, rawTo));
   return { from: a, to: b };
 }
+
+export function clampUtxoCount(n: number): number {
+  const x = Math.floor(Number(n));
+  if (!Number.isFinite(x)) return 20;
+  return Math.max(1, Math.min(1000, x));
+}
+
+export type UtxoScanObject = { desc: string; range: [number, number] };
+
+export function utxoScanObjects(
+  descriptor: string,
+  count: number,
+  receive: boolean,
+  change: boolean,
+): UtxoScanObject[] {
+  const n = clampUtxoCount(count);
+  const range: [number, number] = [0, n - 1];
+  const out: UtxoScanObject[] = [];
+  if (receive) out.push({ desc: descriptorForBranch(descriptor, 0), range });
+  if (change) out.push({ desc: descriptorForBranch(descriptor, 1), range });
+  return out;
+}
+
+export interface UtxoHit {
+  txid: string;
+  vout: number;
+  amount: number;
+  height: number;
+  desc: string;
+}
+
+export interface UtxoScanResult {
+  height: number;
+  total: number;
+  unspents: UtxoHit[];
+}
+
+function asBtc(v: unknown): number {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  if (typeof v === "string" && v.trim()) {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  }
+  return 0;
+}
+
+export function parseScantxoutset(raw: unknown): UtxoScanResult {
+  if (!raw || typeof raw !== "object") throw new Error("hw.utxo.bad");
+  const r = raw as Record<string, unknown>;
+  const rows = Array.isArray(r.unspents) ? r.unspents : [];
+  const unspents: UtxoHit[] = [];
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    const u = row as Record<string, unknown>;
+    const txid = String(u.txid ?? "").trim();
+    if (!txid) continue;
+    unspents.push({
+      txid,
+      vout: Number(u.vout) || 0,
+      amount: asBtc(u.amount),
+      height: Number(u.height) || 0,
+      desc: String(u.desc ?? ""),
+    });
+  }
+  return {
+    height: Number(r.height) || 0,
+    total: asBtc(r.total_amount),
+    unspents,
+  };
+}
+
+export function formatBtc(n: number): string {
+  return (Number.isFinite(n) ? n : 0).toFixed(8);
+}
+

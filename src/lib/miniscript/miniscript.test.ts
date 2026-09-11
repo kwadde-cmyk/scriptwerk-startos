@@ -9,6 +9,7 @@ import {
   expandAliasKeys,
 } from "./compile.ts";
 import { explainPolicy } from "./explain.ts";
+import { decodeLibrary, encodeLibrary, peekChecksum, type SavedPolicy } from "../policy-library.ts";
 import {
   applyKeyMaterial,
   attachChildOrReplace,
@@ -64,9 +65,13 @@ import {
   bitboxAddressPath,
   chainMatches,
   clampIndexRange,
+  clampUtxoCount,
   descriptorForBranch,
+  formatBtc,
   isHmacHex,
+  parseScantxoutset,
   policyCacheKey,
+  utxoScanObjects,
   watchOnlyKeys,
 } from "../hw/address-check.ts";
 import { validatePolicy } from "./validate.ts";
@@ -1060,6 +1065,32 @@ describe("ledger address check helpers", () => {
     assert.equal(descsumCheck(chg), true);
   });
 
+  it("builds scantxoutset objects for receive and change", () => {
+    const raw = descsumCreate(`wsh(pk([deadbeef/48'/0'/0'/2']${XPUB}/<0;1>/*))`);
+    const objs = utxoScanObjects(raw, 20, true, true);
+    assert.equal(objs.length, 2);
+    assert.deepEqual(objs[0]!.range, [0, 19]);
+    assert.match(stripChecksum(objs[0]!.desc), /\/0\/\*/);
+    assert.match(stripChecksum(objs[1]!.desc), /\/1\/\*/);
+    assert.equal(utxoScanObjects(raw, 20, false, false).length, 0);
+  });
+
+  it("parses scantxoutset", () => {
+    const parsed = parseScantxoutset({
+      success: true,
+      height: 900000,
+      total_amount: 0.01,
+      unspents: [
+        { txid: "ab".repeat(32), vout: 1, amount: "0.01", height: 890000, desc: "wsh()" },
+        { txid: "", vout: 0, amount: 1 },
+      ],
+    });
+    assert.equal(parsed.unspents.length, 1);
+    assert.equal(parsed.unspents[0]!.vout, 1);
+    assert.equal(parsed.total, 0.01);
+    assert.equal(parsed.height, 900000);
+  });
+
   it("keeps policy HMAC keys distinct when the name changes", () => {
     const a = policyCacheKey({ name: "Scriptwerk", template: "wsh(pk(@0/**))", keys: [] });
     const b = policyCacheKey({ name: "Other", template: "wsh(pk(@0/**))", keys: [] });
@@ -1076,6 +1107,10 @@ describe("ledger address check helpers", () => {
     );
     assert.equal(allRequestedMatch([]), false);
     assert.deepEqual(clampIndexRange(-3, 99), { from: 0, to: 19 });
+    assert.equal(clampUtxoCount(0), 1);
+    assert.equal(clampUtxoCount(20), 20);
+    assert.equal(clampUtxoCount(9999), 1000);
+    assert.equal(formatBtc(0.5), "0.50000000");
     assert.equal(chainMatches("mainnet", "main"), true);
     assert.equal(chainMatches("mainnet", "test"), false);
     assert.equal(chainMatches("testnet", "signet"), false);
@@ -1136,6 +1171,45 @@ describe("ledger address check helpers", () => {
     const { node } = parseAny("multi(2,A,B,C,D,E,F)");
     const issues = validatePolicy(node, "en");
     assert.equal(issues.some((i) => /5 keys|placeholders|manyKeys/i.test(i.message)), false);
+  });
+});
+
+describe("policy library", () => {
+  it("reads checksum from a descriptor", () => {
+    assert.equal(peekChecksum("wsh(pk(A))#abcdefgh"), "abcdefgh");
+    assert.equal(peekChecksum("wsh(pk(A))"), "");
+  });
+
+  it("round-trips saved policies", () => {
+    const item: SavedPolicy = {
+      id: "pol_1",
+      name: "Erbe",
+      savedAt: 1,
+      checksum: "abcdefgh",
+      network: "mainnet",
+      snapshot: {
+        keys: [],
+        root: null,
+        stages: [{ id: "st_1", delay: 0, k: 2, keys: ["A", "B", "C"] }],
+        network: "mainnet",
+        reuseKeys: false,
+        nesting: "late",
+        mode: "easy",
+        maxOlder: 65534,
+        policyName: "Erbe",
+      },
+    };
+    const raw = encodeLibrary([item]);
+    const back = decodeLibrary(raw);
+    assert.equal(back.length, 1);
+    assert.equal(back[0]!.name, "Erbe");
+    assert.equal(back[0]!.snapshot.stages[0]!.k, 2);
+  });
+
+  it("drops junk rows", () => {
+    assert.deepEqual(decodeLibrary("[]"), []);
+    assert.deepEqual(decodeLibrary("{"), []);
+    assert.deepEqual(decodeLibrary('[{"name":"x"}]'), []);
   });
 });
 

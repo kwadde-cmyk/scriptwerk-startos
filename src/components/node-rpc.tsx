@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { useT } from "@/lib/use-t";
 import { localizeMessage } from "@/lib/i18n";
 import { CopyButton } from "@/components/copy-button";
+import { UtxoScanPanel } from "@/components/utxo-scan";
 import { Loader2, Server } from "lucide-react";
 import { toast } from "sonner";
 import { defaultRpcPort, hostProxyAvailable, hostProxyInfo, isLanIpUrl, looksLikeStartos, normalizeRpcUrl, setUseHostProxy } from "@/lib/bitcoind/rpc";
@@ -557,7 +558,10 @@ function TracePanel() {
 function CheckResult() {
   const { t } = useT();
   const lastCheck = useBitcoind((s) => s.lastCheck);
+  const status = useBitcoind((s) => s.status);
+  const demo = useBitcoind((s) => s.demo);
   if (!lastCheck) return null;
+  const utxoOn = status === "ready" && !demo && lastCheck.source === "core" && lastCheck.issolvable;
   return (
     <div className="rounded-lg border border-border bg-surface px-3 py-2 text-xs">
       <p className="text-2xs font-medium tracking-[0.14em] text-fg-subtle uppercase">{t("node.checkTitle")}</p>
@@ -598,6 +602,10 @@ function CheckResult() {
           {t("node.deriveSkip")}: {lastCheck.deriveError}
         </p>
       ) : null}
+      <UtxoScanPanel
+        enabled={utxoOn}
+        hint={utxoOn ? t("hw.utxo.blurb") : t("hw.utxo.needCheck")}
+      />
     </div>
   );
 }

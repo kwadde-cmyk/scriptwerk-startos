@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.13:0',
+  version: '0.1.14:0',
   releaseNotes: {
     en_US:
-      'Node bridge sends current RPC user/password on every call. HTTP 401 shows the username and password length. Self-host StartOS: use the RPC user from Bitcoin Core Actions, not the placeholder.',
+      'Saved policies in the browser, printable recovery sheet, and UTXO scan (scantxoutset) after Core accepts the descriptor. Default 20 receive and change addresses. Also: reverse-proxy host allowlist.',
     de_DE:
-      'Node-Brücke sendet Nutzer/Passwort bei jedem RPC. HTTP 401 zeigt Nutzer und Passwortlänge. Self-host StartOS: RPC-Nutzer aus Bitcoin Core → Aktionen, nicht den Platzhalter.',
+      'Gespeicherte Policies im Browser, Recovery-Blatt zum Drucken und UTXO-Prüfung (scantxoutset), sobald Core den Descriptor bestätigt. Standard 20 Empfangs- und Wechseladressen. Dazu: Reverse-Proxy Host-Allowlist.',
     es_ES:
-      'El puente envía usuario/contraseña en cada RPC. HTTP 401 muestra usuario y longitud. StartOS autoalojado: usuario RPC de Acciones, no el marcador.',
+      'Políticas guardadas en el navegador, hoja de recuperación imprimible y escaneo UTXO (scantxoutset) tras validar el descriptor en Core. 20 direcciones por defecto.',
     pl_PL:
-      'Most wysyła użytkownika i hasło przy każdym RPC. HTTP 401 pokazuje nazwę i długość hasła. StartOS: użytkownik RPC z Akcji, nie placeholder.',
+      'Zapisane polityki w przeglądarce, karta recovery do druku i skan UTXO (scantxoutset) po akceptacji deskryptora przez Core. Domyślnie 20 adresów.',
     fr_FR:
-      'Le pont envoie identifiant/mot de passe à chaque RPC. HTTP 401 affiche le nom et la longueur. StartOS auto-hébergé : utilisateur RPC des Actions, pas le placeholder.',
+      'Politiques enregistrées dans le navigateur, feuille de recovery imprimable et scan UTXO (scantxoutset) une fois le descripteur validé par Core. 20 adresses par défaut.',
   },
   migrations: {
     up: async () => {},

@@ -1,5 +1,10 @@
 import { checksumOf, coreCanonicalBody, stripChecksum } from "../miniscript/checksum.ts";
 import { rewriteSortedMultiForCore } from "../miniscript/compile.ts";
+import {
+  parseScantxoutset,
+  utxoScanObjects,
+  type UtxoScanResult,
+} from "../hw/address-check.ts";
 
 export interface BitcoindConfig {
   url: string;
@@ -409,4 +414,35 @@ export async function deriveAddressRange(
   const raw = await jsonRpc(config, "deriveaddresses", [desc, [begin, end]]);
   if (!Array.isArray(raw)) throw new Error("node.err.derive");
   return raw.map(String);
+}
+
+export async function scanDescriptorUtxos(
+  config: BitcoindConfig,
+  descriptor: string,
+  opts: { count: number; receive: boolean; change: boolean },
+): Promise<UtxoScanResult> {
+  const objects = utxoScanObjects(descriptor, opts.count, opts.receive, opts.change);
+  if (!objects.length) throw new Error("hw.utxo.none");
+  const scan = objects.map((o) => ({
+    desc: rewriteSortedMultiForCore(o.desc),
+    range: o.range,
+  }));
+  const start = () => jsonRpc(config, "scantxoutset", ["start", scan]);
+  try {
+    return parseScantxoutset(await start());
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "";
+    if (/already in progress|scan already/i.test(msg)) {
+      try {
+        await jsonRpc(config, "scantxoutset", ["abort"]);
+      } catch {
+        /* still retry */
+      }
+      return parseScantxoutset(await start());
+    }
+    if (/not found|forbidden|not allowed|whitelist|unauthorized method/i.test(msg)) {
+      throw new Error("hw.utxo.denied");
+    }
+    throw e;
+  }
 }

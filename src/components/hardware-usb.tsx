@@ -30,6 +30,7 @@ import { Label } from "@/components/ui/label";
 import { useT } from "@/lib/use-t";
 import { localizeMessage } from "@/lib/i18n";
 import { CopyButton, Copyable } from "@/components/copy-button";
+import { UtxoScanPanel } from "@/components/utxo-scan";
 import { Usb } from "lucide-react";
 import { toast } from "sonner";
 
@@ -537,6 +538,12 @@ function AddressCheckPanel({
           </table>
         </div>
       ) : null}
+      <UtxoScanPanel
+        enabled={ok && nodeStatus === "ready" && !nodeDemo && !disabled && !working}
+        hint={ok ? t("hw.utxo.blurb") : t("hw.utxo.needMatch")}
+        receive={receive}
+        change={change}
+      />
     </div>
   );
 }
