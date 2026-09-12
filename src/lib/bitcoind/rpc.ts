@@ -446,9 +446,9 @@ export async function deriveAddressRange(
 export async function scanDescriptorUtxos(
   config: BitcoindConfig,
   descriptor: string,
-  opts: { count: number; receive: boolean; change: boolean; electrum?: string },
+  opts: { count: number; receive: boolean; change: boolean; electrum?: string; from?: number },
 ): Promise<UtxoScanResult> {
-  const objects = utxoScanObjects(descriptor, opts.count, opts.receive, opts.change);
+  const objects = utxoScanObjects(descriptor, opts.count, opts.receive, opts.change, opts.from ?? 0);
   if (!objects.length) throw new Error("hw.utxo.none");
   const addresses: string[] = [];
   for (const o of objects) {
@@ -472,9 +472,30 @@ export async function scanDescriptorUtxos(
   if (body.error?.message) throw new Error(body.error.message);
   if (res.status >= 400) throw new Error(body.error?.message || "hw.utxo.needElectrum");
   const unspents = Array.isArray(body.result?.unspents) ? body.result.unspents : [];
+  const last = objects[0]?.range[1] ?? -1;
   return {
     height: Number(body.result?.height) || 0,
     total: Number(body.result?.total) || 0,
     unspents,
+    scanned: last + 1,
   };
+}
+
+export async function fetchElectrumTip(server?: string): Promise<number> {
+  const res = await fetch("/electrum", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify({ tip: true, server: server ?? "" }),
+  });
+  if (res.status === 404) throw new Error("hw.utxo.needElectrum");
+  const body = (await res.json().catch(() => null)) as {
+    result?: { height?: number };
+    error?: { message?: string };
+  } | null;
+  if (body?.error?.message) throw new Error(body.error.message);
+  if (!res.ok) throw new Error(body?.error?.message || "hw.utxo.needElectrum");
+  const height = Number(body?.result?.height) || 0;
+  if (height <= 0) throw new Error("spend.err.tip");
+  return height;
 }

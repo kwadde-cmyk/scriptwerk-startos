@@ -119,7 +119,7 @@ async function scripthash(addr) {
  * @param {{ host: string, port: number, tls: boolean }} target
  * @param {{ method: string, params: unknown[] }[]} calls
  */
-async function electrumBatch(target, calls) {
+async function electrumBatch(target, calls, timeoutMs = 25000) {
   return new Promise((resolve, reject) => {
     const sock = target.tls
       ? tls.connect({ host: target.host, port: target.port, servername: target.host, rejectUnauthorized: false })
@@ -130,7 +130,7 @@ async function electrumBatch(target, calls) {
     const timer = setTimeout(() => {
       sock.destroy();
       reject(new Error("electrum timeout"));
-    }, 25000);
+    }, timeoutMs);
     const finish = (err, value) => {
       clearTimeout(timer);
       sock.destroy();
@@ -226,6 +226,25 @@ export async function lookupElectrumUtxos(addresses, serverFromClient) {
   };
 }
 
+export async function lookupElectrumTip(serverFromClient) {
+  const fromUi = parseTarget(serverFromClient);
+  const env = parseTarget(electrumEnvUrl());
+  const target = fromUi || env;
+  if (!target) {
+    return { status: 404, body: JSON.stringify({ error: { message: "hw.utxo.needElectrum" } }) };
+  }
+  if (!hostAllowed(target.host)) {
+    return { status: 400, body: JSON.stringify({ error: { message: "hw.utxo.lanOnly" } }) };
+  }
+  const rows = await electrumBatch(target, [{ method: "blockchain.headers.subscribe", params: [] }], 4000);
+  const head = rows[0];
+  const height = Number(head && typeof head === "object" ? head.height : head) || 0;
+  return {
+    status: 200,
+    body: JSON.stringify({ result: { height } }),
+  };
+}
+
 export function attachElectrumProxy(middlewares) {
   middlewares.use(async (req, res, next) => {
     const path = String(req.url ?? "").split("?")[0];
@@ -235,6 +254,23 @@ export function attachElectrumProxy(middlewares) {
       res.setHeader("cache-control", "no-store");
       res.end(JSON.stringify(electrumInfo()));
       return;
+    }
+    if (path === "/electrum/tip") {
+      const method = String(req.method ?? "GET").toUpperCase();
+      if (method === "GET" || method === "HEAD") {
+        try {
+          const out = await lookupElectrumTip("");
+          res.statusCode = out.status;
+          res.setHeader("content-type", "application/json");
+          res.setHeader("cache-control", "no-store");
+          res.end(out.body);
+        } catch (err) {
+          res.statusCode = 502;
+          res.setHeader("content-type", "application/json");
+          res.end(JSON.stringify({ error: { message: err instanceof Error ? err.message : "electrum failed" } }));
+        }
+        return;
+      }
     }
     if (path !== "/electrum") {
       next();
@@ -263,6 +299,13 @@ export function attachElectrumProxy(middlewares) {
       return;
     }
     try {
+      if (parsed.tip) {
+        const out = await lookupElectrumTip(parsed.server);
+        res.statusCode = out.status;
+        res.setHeader("content-type", "application/json");
+        res.end(out.body);
+        return;
+      }
       const out = await lookupElectrumUtxos(parsed.addresses, parsed.server);
       res.statusCode = out.status;
       res.setHeader("content-type", "application/json");

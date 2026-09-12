@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.16:0',
+  version: '0.1.17:0',
   releaseNotes: {
     en_US:
-      'On StartOS, UTXO lookup uses Fulcrum or Electrs on this device over the internal bridge. No LAN ssl:// address needed. Self-host still enters Electrum in the Node dialog.',
+      'Spend-path check: tap the devices you have with you and see which stage can spend now. Faster load: no Electrum hang on open, recovery QRs only when printing.',
     de_DE:
-      'Auf StartOS nutzt die UTXO-Prüfung Fulcrum oder Electrs auf diesem Gerät über die interne Brücke. Keine LAN-ssl://-Adresse nötig. Self-host trägt Electrum weiter im Node-Dialog ein.',
+      'Ausgabepfad-Check: Geräte antippen, die du dabei hast, und sehen welche Stufe jetzt spendbar ist. Schnelleres Laden: kein Electrum-Timeout beim Öffnen, Recovery-QRs nur beim Drucken.',
     es_ES:
-      'En StartOS, UTXO usa Fulcrum o Electrs de este dispositivo por el puente interno. Sin dirección ssl:// de LAN.',
+      'Comprobación de rutas de gasto. Carga más rápida.',
     pl_PL:
-      'Na StartOS skan UTXO używa Fulcrum lub Electrs na tym urządzeniu przez most wewnętrzny.',
+      'Sprawdzanie ścieżek wydatku. Szybsze ładowanie.',
     fr_FR:
-      'Sur StartOS, les UTXO passent par Fulcrum ou Electrs de cet appareil via le pont interne.',
+      'Vérification des chemins de dépense. Chargement plus rapide.',
   },
   migrations: {
     up: async () => {},

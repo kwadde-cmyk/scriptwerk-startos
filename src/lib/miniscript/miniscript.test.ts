@@ -25,6 +25,7 @@ import {
   formatExportWithKeys,
   formatKeyList,
   peelKeysFromText,
+  displayKeyToken,
   keyHeadline,
   keyNeedsAction,
   keyRoleLabel,
@@ -47,6 +48,7 @@ import {
 import { visit } from "./ast.ts";
 import { parseAny } from "./parser.ts";
 import { compileStages, delayPresets, describeStageSlots, inferNesting, inferStages, nextStageDelay, permutations, slotsForAccount, sortedMultiAllowed, stageFormula, stageHighlightIds, stageIndicesForAccount, stageKeyOrderVariants } from "./stages.ts";
+import { confirmationsAt, coinHeightFromConfirms, evaluateSpendPaths, youngestCoinHeight } from "./spend-check.ts";
 import {
   compileBip388,
   formatBitboxJson,
@@ -70,6 +72,7 @@ import {
   descriptorForBranch,
   formatBtc,
   isHmacHex,
+  mergeUtxoResults,
   parseScantxoutset,
   policyCacheKey,
   utxoScanObjects,
@@ -414,6 +417,25 @@ describe("keys", () => {
       "NANO-S, deadbeef, A Master",
     );
     assert.equal(shortXpub(XPUB), `${XPUB.slice(0, 12)}…${XPUB.slice(-8)}`);
+  });
+
+  it("uses the device name instead of A/A1 when a note is set", () => {
+    const nano = { ...emptyKey("A"), note: "NANO-S", fingerprint: "deadbeef", xpub: XPUB };
+    const cold = { ...emptyKey("B"), note: "COLDCARD", fingerprint: "cafebabe", xpub: XPUB };
+    assert.equal(displayKeyToken("A", [nano, cold]), "NANO-S");
+    assert.equal(displayKeyToken("B", [nano, cold]), "COLDCARD");
+    assert.equal(displayKeyToken("A1", [nano, cold]), "NANO-S (A1)");
+    assert.equal(displayKeyToken("C", [nano, cold]), "C");
+    const withChild = {
+      ...nano,
+      children: [{ id: "c1", path: "48'/0'/1'/2'", xpub: XPUB, fingerprint: "deadbeef", note: "NANO-S-2" }],
+    };
+    assert.equal(displayKeyToken("A1", [withChild]), "NANO-S-2");
+    const root = compileStages([{ id: "s1", delay: 0, k: 2, keys: ["A", "B"] }]).root;
+    const exp = explainPolicy(root, "de", [nano, cold]);
+    assert.match(exp.groups[0]?.paths[0]?.label ?? "", /NANO-S/);
+    assert.match(exp.groups[0]?.paths[0]?.label ?? "", /COLDCARD/);
+    assert.doesNotMatch(exp.narrative.join(" "), /\bA\b/);
   });
 
   it("flags empty keys and missing child accounts", () => {
@@ -1074,6 +1096,15 @@ describe("ledger address check helpers", () => {
     assert.match(stripChecksum(objs[0]!.desc), /\/0\/\*/);
     assert.match(stripChecksum(objs[1]!.desc), /\/1\/\*/);
     assert.equal(utxoScanObjects(raw, 20, false, false).length, 0);
+    const later = utxoScanObjects(raw, 20, true, false, 20);
+    assert.deepEqual(later[0]!.range, [20, 39]);
+    const merged = mergeUtxoResults(
+      { height: 10, total: 0.1, unspents: [{ txid: "aa", vout: 0, amount: 0.1, height: 9, desc: "" }] },
+      { height: 12, total: 0.2, unspents: [{ txid: "aa", vout: 0, amount: 0.1, height: 9, desc: "" }, { txid: "bb", vout: 1, amount: 0.2, height: 11, desc: "" }] },
+    );
+    assert.equal(merged.unspents.length, 2);
+    assert.equal(merged.height, 12);
+    assert.ok(Math.abs(merged.total - 0.3) < 1e-9);
   });
 
   it("parses scantxoutset", () => {
@@ -1172,6 +1203,76 @@ describe("ledger address check helpers", () => {
     const { node } = parseAny("multi(2,A,B,C,D,E,F)");
     const issues = validatePolicy(node, "en");
     assert.equal(issues.some((i) => /5 keys|placeholders|manyKeys/i.test(i.message)), false);
+  });
+});
+
+describe("spend-path check", () => {
+  const abc = [{ id: "s1", delay: 0, k: 2, keys: ["A", "B", "C"] }];
+  const locked = [
+    { id: "s1", delay: 0, k: 2, keys: ["A", "B", "C"] },
+    { id: "s2", delay: 144, k: 1, keys: ["A"], required: ["A"] },
+  ];
+
+  it("counts confirmations from coin height", () => {
+    assert.equal(confirmationsAt(100, 0), 0);
+    assert.equal(confirmationsAt(100, 100), 1);
+    assert.equal(confirmationsAt(244, 100), 145);
+    assert.equal(confirmationsAt(100, coinHeightFromConfirms(100, 20)), 20);
+    assert.equal(youngestCoinHeight([10, 50, 0]), 50);
+  });
+
+  it("2-of-3 spends with two devices now", () => {
+    const r = evaluateSpendPaths({ stages: abc, reuse: true, present: ["A", "B"], tip: 800000, coinHeight: 0 });
+    assert.equal(r.stages[0]?.canSpendNow, true);
+    assert.equal(r.anyNow, true);
+  });
+
+  it("2-of-3 with one device cannot sign", () => {
+    const r = evaluateSpendPaths({ stages: abc, reuse: true, present: ["A"], tip: 800000, coinHeight: 0 });
+    assert.equal(r.stages[0]?.canSign, false);
+    assert.equal(r.stages[0]?.restNeed, 2);
+    assert.equal(r.stages[0]?.restHave, 1);
+  });
+
+  it("required key A plus one of the rest", () => {
+    const stages = [{ id: "s1", delay: 0, k: 2, keys: ["A", "B", "C"], required: ["A"] }];
+    const ok = evaluateSpendPaths({ stages, reuse: true, present: ["A", "C"], tip: 1, coinHeight: 0 });
+    assert.equal(ok.stages[0]?.canSpendNow, true);
+    const no = evaluateSpendPaths({ stages, reuse: true, present: ["B", "C"], tip: 1, coinHeight: 0 });
+    assert.equal(no.stages[0]?.canSign, false);
+    assert.ok(no.stages[0]?.missingMust.length);
+  });
+
+  it("timelock waits even when keys are enough", () => {
+    const r = evaluateSpendPaths({
+      stages: locked,
+      reuse: true,
+      present: ["A"],
+      tip: 800000,
+      coinHeight: 0,
+    });
+    const later = r.stages.find((s) => s.delay === 144);
+    assert.equal(later?.canSign, true);
+    assert.equal(later?.canSpendNow, false);
+    assert.equal(later?.blocksLeft, 144);
+    const aged = evaluateSpendPaths({
+      stages: locked,
+      reuse: true,
+      present: ["A"],
+      tip: 800144,
+      coinHeight: coinHeightFromConfirms(800144, 144),
+    });
+    assert.equal(aged.stages.find((s) => s.delay === 144)?.canSpendNow, true);
+  });
+
+  it("one physical key covers child slots when reuse is off", () => {
+    const stages = [
+      { id: "s1", delay: 0, k: 2, keys: ["A", "B"] },
+      { id: "s2", delay: 144, k: 1, keys: ["A"] },
+    ];
+    const r = evaluateSpendPaths({ stages, reuse: false, present: ["A"], tip: 900000, coinHeight: 1 });
+    const second = r.stages.find((s) => s.delay === 144);
+    assert.equal(second?.canSign, true);
   });
 });
 

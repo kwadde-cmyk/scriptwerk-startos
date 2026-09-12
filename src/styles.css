@@ -59,6 +59,10 @@
   }
 
   @media print {
+    @page {
+      size: A4;
+      margin: 10mm;
+    }
     html,
     body {
       background: #fff !important;
@@ -75,6 +79,9 @@
     }
     .print-root {
       display: block !important;
+    }
+    .recovery-sheet {
+      max-width: none !important;
     }
   }
 

@@ -842,6 +842,31 @@ export function childForAccount(key: KeyEntry, account: number): KeyChild | unde
   return normalizeKeyEntry(key).children.find((c) => parseAccountIndex(c.path) === account);
 }
 
+export function displayKeyToken(token: string, keys: KeyEntry[]): string {
+  const base = baseKeyName(token);
+  const acc = aliasAccountIndex(token);
+  const k = keys.find((x) => x.name === base);
+  if (!k) return token;
+  const masterNote = k.note.trim();
+  if (acc != null && acc > 0) {
+    const child = childForAccount(k, acc);
+    const childNote = child?.note.trim();
+    if (childNote) return childNote;
+    if (masterNote) return `${masterNote} (${token})`;
+    return token;
+  }
+  return masterNote || token;
+}
+
+export function keyOriginExpr(k: {
+  fingerprint?: string;
+  derivation?: string;
+  xpub: string;
+  childPath?: string;
+}): string {
+  return originExpr(k);
+}
+
 export function keyHeadline(k: KeyEntry): string {
   const note = k.note.trim();
   if (note) return note;

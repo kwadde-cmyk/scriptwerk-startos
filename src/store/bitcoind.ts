@@ -28,6 +28,7 @@ interface BitcoindState {
   probe: NodeProbe | null;
   trace: DiagReport | null;
   lastCheck: NodeCheck | null;
+  lastUtxo: { height: number; coinHeights: number[] } | null;
   error: string | null;
   checking: boolean;
   setOpen: (open: boolean) => void;
@@ -37,6 +38,7 @@ interface BitcoindState {
   finishBridge: () => Promise<void>;
   disconnect: () => void;
   validate: (descriptor: string, network?: "mainnet" | "testnet") => Promise<void>;
+  setLastUtxo: (u: { height: number; coinHeights: number[] } | null) => void;
 }
 
 const DEMO_PROBE: NodeProbe = {
@@ -63,6 +65,7 @@ export const useBitcoind = create<BitcoindState>()(
       probe: null,
       trace: null,
       lastCheck: null,
+      lastUtxo: null,
       error: null,
       checking: false,
       setOpen: (open) => set({ open }),
@@ -253,6 +256,7 @@ export const useBitcoind = create<BitcoindState>()(
           });
         }
       },
+      setLastUtxo: (u) => set({ lastUtxo: u }),
     }),
     {
       name: "scriptwerk-bitcoind-v3",

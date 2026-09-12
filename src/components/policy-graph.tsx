@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { layoutTree } from "@/lib/miniscript/layout";
 import { visit, type MsNode } from "@/lib/miniscript/ast";
 import { blocksWhen, tokenNeedsAction, type KeyEntry } from "@/lib/miniscript/keys";
@@ -23,7 +23,7 @@ function attentionIds(root: MsNode | null, keys: KeyEntry[], reuse: boolean): Se
   return ids;
 }
 
-export function PolicyGraph() {
+export const PolicyGraph = memo(function PolicyGraph() {
   const { t, locale } = useT();
   const root = useStudio((s) => s.root);
   const keys = useStudio((s) => s.keys);
@@ -197,4 +197,4 @@ export function PolicyGraph() {
       )}
     </div>
   );
-}
+});

@@ -135,10 +135,12 @@ function readWidth(key: string, fallback: number) {
 }
 
 function usePaneWidth(key: string, fallback: number, min: number, max: number) {
-  const [width, setWidth] = useState(() =>
-    typeof window === "undefined" ? fallback : clamp(readWidth(key, fallback), min, max),
-  );
+  const [width, setWidth] = useState(fallback);
   const ref = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setWidth(clamp(readWidth(key, fallback), min, max));
+  }, [key, fallback, min, max]);
 
   const onDrag = useCallback(
     (e: ReactPointerEvent, dir: 1 | -1) => {
@@ -330,11 +332,7 @@ function MountWhenVisible({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [show, setShow] = useState(() => {
-    if (typeof window === "undefined") return false;
-    const wide = window.matchMedia("(min-width: 1024px)").matches;
-    return dataLayout === "desktop" ? wide : !wide;
-  });
+  const [show, setShow] = useState(false);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;

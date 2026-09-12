@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 import { compileDescriptorCached } from "@/lib/miniscript/compile";
-import { clampUtxoCount, formatBtc, type UtxoScanResult } from "@/lib/hw/address-check";
+import { clampUtxoCount, formatBtc, mergeUtxoResults, UTXO_SCAN_CAP, type UtxoScanResult } from "@/lib/hw/address-check";
 import { scanDescriptorUtxos } from "@/lib/bitcoind/rpc";
 import { useBitcoind } from "@/store/bitcoind";
 import { useStudio } from "@/store/studio";
@@ -32,6 +32,7 @@ export function UtxoScanPanel({
   const [count, setCount] = useState(20);
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState<UtxoScanResult | null>(null);
+  const [scanned, setScanned] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
   async function run() {
@@ -40,18 +41,36 @@ export function UtxoScanPanel({
     setCount(n);
     setBusy(true);
     setError(null);
+    setResult(null);
+    setScanned(0);
     const node = useBitcoind.getState();
+    const cfg = { url: node.url, username: node.username, password: node.password };
     try {
-      const next = await scanDescriptorUtxos(
-        { url: node.url, username: node.username, password: node.password },
-        compiled.descriptor,
-        { count: n, receive, change, electrum: node.electrum },
-      );
-      setResult(next);
-      if (next.unspents.length) {
-        toast.success(t("hw.utxo.found", { n: next.unspents.length, btc: formatBtc(next.total) }));
+      let from = 0;
+      let merged: UtxoScanResult = { height: 0, total: 0, unspents: [] };
+      while (from < UTXO_SCAN_CAP) {
+        const next = await scanDescriptorUtxos(cfg, compiled.descriptor, {
+          count: n,
+          receive,
+          change,
+          electrum: node.electrum,
+          from,
+        });
+        merged = mergeUtxoResults(merged, next);
+        from += n;
+        merged.scanned = Math.min(from, UTXO_SCAN_CAP);
+        setScanned(merged.scanned);
+        setResult(merged);
+        if (!next.unspents.length) break;
+      }
+      useBitcoind.getState().setLastUtxo({
+        height: merged.height,
+        coinHeights: merged.unspents.map((u) => u.height),
+      });
+      if (merged.unspents.length) {
+        toast.success(t("hw.utxo.found", { n: merged.unspents.length, btc: formatBtc(merged.total) }));
       } else {
-        toast.success(t("hw.utxo.empty", { n }));
+        toast.success(t("hw.utxo.empty", { n: merged.scanned ?? n }));
       }
     } catch (e) {
       const msg = localizeMessage(locale, e instanceof Error ? e.message : "hw.utxo.bad");
@@ -83,13 +102,18 @@ export function UtxoScanPanel({
           {t("hw.utxo.run")}
         </Button>
       </div>
-      {busy ? <p className="text-2xs text-fg-muted">{t("hw.utxo.working")}</p> : null}
+      {busy ? (
+        <p className="text-2xs text-fg-muted">
+          {t("hw.utxo.working")}
+          {scanned ? ` · ${t("hw.utxo.scanned", { n: scanned })}` : ""}
+        </p>
+      ) : null}
       {error ? <p className="text-2xs text-danger">{error}</p> : null}
       {result && !busy ? (
         <p className="text-xs text-fg">
           {result.unspents.length
-            ? t("hw.utxo.found", { n: result.unspents.length, btc: formatBtc(result.total) })
-            : t("hw.utxo.empty", { n: count })}
+            ? `${t("hw.utxo.found", { n: result.unspents.length, btc: formatBtc(result.total) })} · ${t("hw.utxo.scanned", { n: result.scanned ?? scanned })}`
+            : t("hw.utxo.empty", { n: result.scanned ?? count })}
         </p>
       ) : null}
       {result?.unspents.length ? (

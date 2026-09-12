@@ -1,5 +1,5 @@
 import type { MsNode } from "./ast.ts";
-import { blocksToHuman, blocksWhen } from "./keys.ts";
+import { blocksToHuman, blocksWhen, displayKeyToken, type KeyEntry } from "./keys.ts";
 import { numberLocale, t, type Locale } from "../i18n.ts";
 
 export interface SpendPath {
@@ -16,14 +16,16 @@ export interface SpendGroup {
 export function explainPolicy(
   root: MsNode,
   locale: Locale = "de",
+  keys: KeyEntry[] = [],
 ): {
   title: string;
   paths: SpendPath[];
   groups: SpendGroup[];
   narrative: string[];
 } {
+  const label = (token: string) => displayKeyToken(token, keys);
   const paths = mergePaths(
-    flatten(root, 0, locale).sort((a, b) => a.delay - b.delay || a.label.localeCompare(b.label)),
+    flatten(root, 0, locale, label).sort((a, b) => a.delay - b.delay || a.label.localeCompare(b.label)),
   );
   const groups = groupByDelay(paths);
   const narrative = groups.map((g) =>
@@ -67,19 +69,28 @@ export function groupByDelay(paths: SpendPath[]): SpendGroup[] {
     .map(([delay, items]) => ({ delay, paths: items }));
 }
 
-function flatten(node: MsNode, delay: number, locale: Locale): SpendPath[] {
+function flatten(
+  node: MsNode,
+  delay: number,
+  locale: Locale,
+  label: (token: string) => string,
+): SpendPath[] {
   switch (node.kind) {
     case "hole":
       return [{ delay, label: t(locale, "explain.incomplete"), detail: t(locale, "explain.hole") }];
     case "pk":
-      return [{ delay, label: node.key, detail: `pk(${node.key})` }];
+      return [{ delay, label: label(node.key), detail: `pk(${node.key})` }];
     case "pkh":
-      return [{ delay, label: t(locale, "explain.hash", { key: node.key }), detail: `pkh(${node.key})` }];
+      return [{ delay, label: t(locale, "explain.hash", { key: label(node.key) }), detail: `pkh(${node.key})` }];
     case "multi":
       return [
         {
           delay,
-          label: t(locale, "explain.kofn", { k: node.k, n: node.keys.length, keys: node.keys.join(" · ") }),
+          label: t(locale, "explain.kofn", {
+            k: node.k,
+            n: node.keys.length,
+            keys: node.keys.map(label).join(" · "),
+          }),
           detail: `multi(${node.k},${node.keys.join(",")})`,
         },
       ];
@@ -94,21 +105,29 @@ function flatten(node: MsNode, delay: number, locale: Locale): SpendPath[] {
         },
       ];
     case "wrap":
-      return flatten(node.child, delay, locale);
+      return flatten(node.child, delay, locale, label);
     case "and_v":
     case "and_b":
-      return andCombine(flatten(node.left, delay, locale), flatten(node.right, delay, locale), locale);
+      return andCombine(
+        flatten(node.left, delay, locale, label),
+        flatten(node.right, delay, locale, label),
+        locale,
+      );
     case "or_i":
     case "or_d":
     case "or_c":
     case "or_b":
-      return [...flatten(node.left, delay, locale), ...flatten(node.right, delay, locale)];
+      return [...flatten(node.left, delay, locale, label), ...flatten(node.right, delay, locale, label)];
     case "andor": {
-      const xy = andCombine(flatten(node.x, delay, locale), flatten(node.y, delay, locale), locale);
-      return [...xy, ...flatten(node.z, delay, locale)];
+      const xy = andCombine(
+        flatten(node.x, delay, locale, label),
+        flatten(node.y, delay, locale, label),
+        locale,
+      );
+      return [...xy, ...flatten(node.z, delay, locale, label)];
     }
     case "thresh": {
-      const childPaths = node.children.map((c) => flatten(c, delay, locale));
+      const childPaths = node.children.map((c) => flatten(c, delay, locale, label));
       return [
         {
           delay,

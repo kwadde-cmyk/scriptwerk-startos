@@ -20,19 +20,20 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useT } from "@/lib/use-t";
 import { Check, Copy, Search } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useMemo, useState, memo } from "react";
 import { toast } from "sonner";
 import { NodeCheckCard } from "@/components/node-rpc";
+import { SpendCheckCard } from "@/components/spend-check";
 import { ScriptHighlight } from "@/components/script-view";
 
-export function InterpreterPanel() {
+export const InterpreterPanel = memo(function InterpreterPanel() {
   const { t, locale } = useT();
   const root = useStudio((s) => s.root);
   const keys = useStudio((s) => s.keys);
   const reuseKeys = useStudio((s) => s.reuseKeys);
   const explained = useMemo(
-    () => explainPolicy(root ?? { id: "empty", kind: "hole" }, locale),
-    [root, locale],
+    () => explainPolicy(root ?? { id: "empty", kind: "hole" }, locale, keys),
+    [root, locale, keys],
   );
   const issues = useMemo(() => validatePolicy(root, locale), [root, locale]);
   const compiled = useMemo(
@@ -89,6 +90,8 @@ export function InterpreterPanel() {
           </section>
         ) : null}
 
+        <SpendCheckCard />
+
         <section>
           <h2 className="mb-2 text-2xs font-medium tracking-[0.14em] text-fg-subtle uppercase">
             {t("read.check")}
@@ -117,7 +120,7 @@ export function InterpreterPanel() {
       </div>
     </ScrollArea>
   );
-}
+});
 
 function OrderVariants() {
   const { t } = useT();

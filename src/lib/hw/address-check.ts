@@ -119,9 +119,12 @@ export function utxoScanObjects(
   count: number,
   receive: boolean,
   change: boolean,
+  from = 0,
 ): UtxoScanObject[] {
   const n = clampUtxoCount(count);
-  const range: [number, number] = [0, n - 1];
+  const start = Math.max(0, Math.min(999, Math.floor(Number(from) || 0)));
+  const end = Math.min(999, start + n - 1);
+  const range: [number, number] = [start, end];
   const out: UtxoScanObject[] = [];
   if (receive) out.push({ desc: descriptorForBranch(descriptor, 0), range });
   if (change) out.push({ desc: descriptorForBranch(descriptor, 1), range });
@@ -141,7 +144,25 @@ export interface UtxoScanResult {
   height: number;
   total: number;
   unspents: UtxoHit[];
+  scanned?: number;
 }
+
+export function mergeUtxoResults(a: UtxoScanResult, b: UtxoScanResult): UtxoScanResult {
+  const map = new Map<string, UtxoHit>();
+  for (const u of [...a.unspents, ...b.unspents]) {
+    const id = `${u.txid}:${u.vout}`;
+    if (!map.has(id)) map.set(id, u);
+  }
+  const unspents = [...map.values()];
+  return {
+    height: Math.max(a.height, b.height),
+    total: unspents.reduce((s, u) => s + u.amount, 0),
+    unspents,
+    scanned: Math.max(a.scanned ?? 0, b.scanned ?? 0),
+  };
+}
+
+export const UTXO_SCAN_CAP = 1000;
 
 function asBtc(v: unknown): number {
   if (typeof v === "number" && Number.isFinite(v)) return v;

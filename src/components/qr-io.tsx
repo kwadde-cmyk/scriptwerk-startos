@@ -241,3 +241,73 @@ export function FilePick({
     </div>
   );
 }
+
+const qrCache = new Map<string, string>();
+
+function qrCacheKey(value: string, width: number, level: string) {
+  return `${level}:${width}:${value}`;
+}
+
+function rememberQr(key: string, url: string) {
+  if (qrCache.size > 48) {
+    const first = qrCache.keys().next().value;
+    if (first) qrCache.delete(first);
+  }
+  qrCache.set(key, url);
+}
+
+export function SheetQr({
+  value,
+  size = 96,
+  label,
+}: {
+  value: string;
+  size?: number;
+  label?: string;
+}) {
+  const width = Math.min(256, Math.max(96, size * 2));
+  const level = value.length > 800 ? "L" : "M";
+  const cacheKey = qrCacheKey(value, width, level);
+  const [src, setSrc] = useState<string | null>(() => qrCache.get(cacheKey) ?? null);
+  useEffect(() => {
+    let cancelled = false;
+    if (!value) {
+      setSrc(null);
+      return;
+    }
+    const hit = qrCache.get(cacheKey);
+    if (hit) {
+      setSrc(hit);
+      return;
+    }
+    QRCode.toDataURL(value, {
+      errorCorrectionLevel: level,
+      margin: 1,
+      width,
+      color: { dark: "#111111", light: "#ffffff" },
+    })
+      .then((url) => {
+        rememberQr(cacheKey, url);
+        if (!cancelled) setSrc(url);
+      })
+      .catch(() => {
+        if (!cancelled) setSrc(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [value, cacheKey, level, width]);
+  if (!src) {
+    return <div className="shrink-0 bg-neutral-200" style={{ width: size, height: size }} aria-hidden />;
+  }
+  return (
+    <img
+      src={src}
+      alt={label || ""}
+      width={size}
+      height={size}
+      className="shrink-0 bg-white"
+      style={{ width: size, height: size }}
+    />
+  );
+}
