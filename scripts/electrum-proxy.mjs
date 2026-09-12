@@ -198,15 +198,20 @@ export async function lookupElectrumUtxos(addresses, serverFromClient) {
   }
   const hashes = [];
   for (const a of addrs) hashes.push({ address: a, scripthash: await scripthash(a) });
-  const calls = hashes.map((h) => ({
-    method: "blockchain.scripthash.listunspent",
-    params: [h.scripthash],
-  }));
+  const calls = [
+    { method: "blockchain.headers.subscribe", params: [] },
+    ...hashes.map((h) => ({
+      method: "blockchain.scripthash.listunspent",
+      params: [h.scripthash],
+    })),
+  ];
   const rows = await electrumBatch(target, calls);
+  const head = rows[0];
+  const chainHeight = Number(head && typeof head === "object" ? head.height : head) || 0;
   const unspents = [];
   let totalSats = 0;
   hashes.forEach((h, i) => {
-    const list = Array.isArray(rows[i]) ? rows[i] : [];
+    const list = Array.isArray(rows[i + 1]) ? rows[i + 1] : [];
     for (const u of list) {
       const sats = Number(u.value) || 0;
       totalSats += sats;
@@ -222,7 +227,7 @@ export async function lookupElectrumUtxos(addresses, serverFromClient) {
   });
   return {
     status: 200,
-    body: JSON.stringify({ result: { unspents, total: totalSats / 1e8, height: 0 } }),
+    body: JSON.stringify({ result: { unspents, total: totalSats / 1e8, height: chainHeight } }),
   };
 }
 

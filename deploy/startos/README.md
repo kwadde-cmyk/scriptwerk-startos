@@ -18,7 +18,7 @@ Volume `main` is mounted at `/data` in the UI container. StartOS writes package 
 
 Bitcoin Core (`bitcoind`) is optional. When enabled, Scriptwerk expects Core to be running and healthy, creates a unique RPC user `scriptwerk_` plus random suffix (Core usernames cannot contain a hyphen), and talks to Core over the internal StartOS network. No volume from Core is mounted. If Core is off, the studio still runs; the Node dialog can point at another RPC.
 
-Fulcrum (`fulcrum`) and Electrs (`electrs`) are optional Electrum servers. Scriptwerk prefers Fulcrum, then Electrs, and uses `getBridgeAddress` on plaintext port 50001 (the LAN `ssl://` wallet address is not used). UTXO lookup then talks to that host from the Scriptwerk container. If neither is installed, enter an Electrum host in the Node dialog.
+Fulcrum (`fulcrum`) and Electrs (`electrs`) are optional. Scriptwerk starts without either. If Fulcrum is installed it is used; otherwise Electrs. `getBridgeAddress` on plaintext port 50001 (not the LAN `ssl://` wallet address). If neither is installed, enter an Electrum host in the Node dialog.
 
 ## Network Access and Interfaces
 

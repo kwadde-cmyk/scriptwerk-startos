@@ -48,7 +48,7 @@ import {
 import { visit } from "./ast.ts";
 import { parseAny } from "./parser.ts";
 import { compileStages, delayPresets, describeStageSlots, inferNesting, inferStages, nextStageDelay, permutations, slotsForAccount, sortedMultiAllowed, stageFormula, stageHighlightIds, stageIndicesForAccount, stageKeyOrderVariants } from "./stages.ts";
-import { confirmationsAt, coinHeightFromConfirms, evaluateSpendPaths, youngestCoinHeight } from "./spend-check.ts";
+import { confirmationsAt, coinHeightFromConfirms, evaluateSpendPaths, oldestCoinHeight, youngestCoinHeight } from "./spend-check.ts";
 import {
   compileBip388,
   formatBitboxJson,
@@ -1219,6 +1219,8 @@ describe("spend-path check", () => {
     assert.equal(confirmationsAt(244, 100), 145);
     assert.equal(confirmationsAt(100, coinHeightFromConfirms(100, 20)), 20);
     assert.equal(youngestCoinHeight([10, 50, 0]), 50);
+    assert.equal(oldestCoinHeight([10, 50, 0]), 10);
+    assert.equal(oldestCoinHeight([0, 0]), 0);
   });
 
   it("2-of-3 spends with two devices now", () => {
@@ -1273,6 +1275,48 @@ describe("spend-path check", () => {
     const r = evaluateSpendPaths({ stages, reuse: false, present: ["A"], tip: 900000, coinHeight: 1 });
     const second = r.stages.find((s) => s.delay === 144);
     assert.equal(second?.canSign, true);
+  });
+
+  it("sums spendable UTXOs and times the oldest remaining lock", () => {
+    const stages = [{ id: "s1", delay: 144, k: 1, keys: ["A"] }];
+    const r = evaluateSpendPaths({
+      stages,
+      reuse: true,
+      present: ["A"],
+      tip: 1000,
+      coinHeight: 0,
+      coins: [
+        { height: 800, amount: 0.1 },
+        { height: 850, amount: 0.2 },
+        { height: 950, amount: 0.05 },
+      ],
+    });
+    const s = r.stages[0]!;
+    assert.equal(s.confirmations, 1000 - 800 + 1);
+    assert.equal(s.canSpendNow, true);
+    assert.ok(Math.abs(s.amountNow - 0.3) < 1e-9);
+    assert.ok(Math.abs(s.nextAmount - 0.05) < 1e-9);
+    assert.equal(s.nextBlocks, 144 - (1000 - 950 + 1));
+  });
+
+  it("shows when the first UTXO unlocks if none are old enough", () => {
+    const stages = [{ id: "s1", delay: 144, k: 1, keys: ["A"] }];
+    const r = evaluateSpendPaths({
+      stages,
+      reuse: true,
+      present: ["A"],
+      tip: 200,
+      coinHeight: 0,
+      coins: [
+        { height: 180, amount: 0.4 },
+        { height: 190, amount: 0.1 },
+      ],
+    });
+    const s = r.stages[0]!;
+    assert.equal(s.canSpendNow, false);
+    assert.equal(s.canSign, true);
+    assert.equal(s.blocksLeft, 144 - (200 - 180 + 1));
+    assert.ok(Math.abs(s.nextAmount - 0.4) < 1e-9);
   });
 });
 

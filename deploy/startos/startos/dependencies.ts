@@ -1,4 +1,5 @@
 import { generateRpcUserDependent } from './bitcoindRpc'
+import { serviceInstalled } from './electrum'
 import { storeJson } from './fileModels/store.json'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
@@ -33,7 +34,11 @@ export const setDependencies = sdk.setupDependencies(async ({ effects }) => {
     /* ignore */
   }
 
-  if (stale) {
+  const hasCore = await serviceInstalled(effects, 'bitcoind')
+  const hasFulcrum = await serviceInstalled(effects, 'fulcrum')
+  const hasElectrs = await serviceInstalled(effects, 'electrs')
+
+  if (stale && hasCore) {
     try {
       await sdk.action.createTask(effects, 'bitcoind', generateRpcUserDependent, 'important', {
         input: {
@@ -51,20 +56,29 @@ export const setDependencies = sdk.setupDependencies(async ({ effects }) => {
   }
 
   return {
-    bitcoind: {
-      kind: 'running',
-      versionRange: '>=26.0.0',
-      healthChecks: ['bitcoind'],
-    },
-    fulcrum: {
-      kind: 'running',
-      versionRange: '>=0.1.0',
-      healthChecks: [],
-    },
-    electrs: {
-      kind: 'running',
-      versionRange: '>=0.1.0',
-      healthChecks: [],
-    },
+    ...(hasCore
+      ? {
+          bitcoind: {
+            kind: 'running' as const,
+            versionRange: '>=26.0.0',
+            healthChecks: ['bitcoind'],
+          },
+        }
+      : {}),
+    ...(hasFulcrum
+      ? {
+          fulcrum: {
+            kind: 'exists' as const,
+            versionRange: '>=0.1.0',
+          },
+        }
+      : hasElectrs
+        ? {
+            electrs: {
+              kind: 'exists' as const,
+              versionRange: '>=0.1.0',
+            },
+          }
+        : {}),
   }
 })

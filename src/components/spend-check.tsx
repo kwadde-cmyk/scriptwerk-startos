@@ -1,11 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { keyHeadline } from "@/lib/miniscript/keys";
-import {
-  coinHeightFromConfirms,
-  confirmationsAt,
-  evaluateSpendPaths,
-  youngestCoinHeight,
-} from "@/lib/miniscript/spend-check";
+import { coinHeightFromConfirms, evaluateSpendPaths } from "@/lib/miniscript/spend-check";
+import { formatBtc } from "@/lib/hw/address-check";
 import { fetchElectrumTip } from "@/lib/bitcoind/rpc";
 import { useBitcoind } from "@/store/bitcoind";
 import { useStudio } from "@/store/studio";
@@ -15,6 +11,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useT } from "@/lib/use-t";
 import { numberLocale } from "@/lib/i18n";
+
+function btc(n: number): string {
+  return formatBtc(n).replace(/0+$/, "").replace(/\.$/, "") || "0";
+}
 
 export function SpendCheckCard() {
   const { t, locale } = useT();
@@ -37,8 +37,8 @@ export function SpendCheckCard() {
     () => keys.filter((k) => k.name.trim()).sort((a, b) => a.name.localeCompare(b.name)),
     [keys],
   );
-
-  const coinHeight = coinHeightFromConfirms(tip, confirms);
+  const coins = lastUtxo?.coins ?? [];
+  const coinHeight = coins.length ? 0 : coinHeightFromConfirms(tip, confirms);
   const report = useMemo(
     () =>
       evaluateSpendPaths({
@@ -48,8 +48,9 @@ export function SpendCheckCard() {
         keys,
         tip,
         coinHeight,
+        coins,
       }),
-    [stages, reuseKeys, present, keys, tip, coinHeight],
+    [stages, reuseKeys, present, keys, tip, coinHeight, coins],
   );
 
   useEffect(() => {
@@ -58,8 +59,13 @@ export function SpendCheckCard() {
       setTipSource("core");
       setTipError(null);
       setBusy(false);
+      return;
     }
-  }, [status, probe]);
+    if (lastUtxo && lastUtxo.height > 0) {
+      setTip((cur) => (cur > 0 ? cur : lastUtxo.height));
+      setTipSource((cur) => (cur === "manual" ? "electrum" : cur));
+    }
+  }, [status, probe, lastUtxo]);
 
   async function loadElectrumTip() {
     setBusy(true);
@@ -80,11 +86,7 @@ export function SpendCheckCard() {
     setPresent((cur) => (cur.includes(name) ? cur.filter((x) => x !== name) : [...cur, name]));
   }
 
-  function useUtxoAge() {
-    if (!lastUtxo?.coinHeights.length || tip <= 0) return;
-    const h = youngestCoinHeight(lastUtxo.coinHeights);
-    setConfirms(confirmationsAt(tip, h));
-  }
+  const nloc = numberLocale(locale);
 
   return (
     <section className="space-y-3">
@@ -116,7 +118,7 @@ export function SpendCheckCard() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className={`grid gap-2 ${coins.length ? "grid-cols-1" : "grid-cols-2"}`}>
         <div>
           <Label htmlFor="spend-tip">{t("spend.tip")}</Label>
           <Input
@@ -139,24 +141,28 @@ export function SpendCheckCard() {
             </Button>
           ) : null}
         </div>
-        <div>
-          <Label htmlFor="spend-age">{t("spend.age")}</Label>
-          <Input
-            id="spend-age"
-            type="number"
-            min={0}
-            value={confirms}
-            onChange={(e) => setConfirms(Math.max(0, Number(e.target.value) || 0))}
-            className="mt-1.5 font-mono text-xs"
-          />
-          <p className="mt-1 text-2xs text-fg-subtle">{t("spend.ageHint")}</p>
-        </div>
+        {coins.length ? (
+          <p className="text-2xs text-fg-muted">
+            {t("spend.utxoCount", { n: coins.length, btc: btc(report.total) })}
+            {report.confirmations
+              ? ` · ${t("spend.oldest", { n: report.confirmations.toLocaleString(nloc) })}`
+              : ""}
+          </p>
+        ) : (
+          <div>
+            <Label htmlFor="spend-age">{t("spend.age")}</Label>
+            <Input
+              id="spend-age"
+              type="number"
+              min={0}
+              value={confirms}
+              onChange={(e) => setConfirms(Math.max(0, Number(e.target.value) || 0))}
+              className="mt-1.5 font-mono text-xs"
+            />
+            <p className="mt-1 text-2xs text-fg-subtle">{t("spend.ageHint")}</p>
+          </div>
+        )}
       </div>
-      {lastUtxo?.coinHeights.some((h) => h > 0) ? (
-        <Button type="button" variant="outline" size="sm" onClick={useUtxoAge}>
-          {t("spend.fromUtxo")}
-        </Button>
-      ) : null}
       {tipError && tipSource === "manual" && !tip ? (
         <p className="text-2xs text-fg-muted">{t("spend.tipManual")}</p>
       ) : null}
@@ -189,20 +195,37 @@ export function SpendCheckCard() {
                   </span>
                   <Badge variant={s.canSpendNow ? "ok" : s.canSign ? "warn" : "danger"}>
                     {s.canSpendNow
-                      ? t("spend.now")
+                      ? s.amountNow > 0
+                        ? t("spend.nowBtc", { btc: btc(s.amountNow) })
+                        : t("spend.now")
                       : s.canSign
-                        ? t("spend.wait", { n: s.blocksLeft.toLocaleString(numberLocale(locale)) })
+                        ? t("spend.wait", { n: s.blocksLeft.toLocaleString(nloc) })
                         : t("spend.needKeys")}
                   </Badge>
                 </div>
-                <p className="mt-1 text-2xs text-fg-muted">
-                  {s.lockOpen
-                    ? t("spend.lockOpen")
-                    : t("spend.lockLeft", {
-                        n: s.blocksLeft.toLocaleString(numberLocale(locale)),
-                        h: s.opensAt.toLocaleString(numberLocale(locale)),
-                      })}
-                </p>
+                {s.canSign && s.amountNow > 0 && s.nextAmount > 0 ? (
+                  <p className="mt-1 text-2xs text-fg">
+                    {t("spend.nextOpens", {
+                      btc: btc(s.nextAmount),
+                      n: s.nextBlocks.toLocaleString(nloc),
+                    })}
+                  </p>
+                ) : s.canSign && !s.lockOpen ? (
+                  <p className="mt-1 text-2xs text-fg-muted">
+                    {s.coinCount
+                      ? t("spend.firstOpens", {
+                          n: s.blocksLeft.toLocaleString(nloc),
+                          h: s.opensAt.toLocaleString(nloc),
+                          btc: btc(s.nextAmount || report.total),
+                        })
+                      : t("spend.lockLeft", {
+                          n: s.blocksLeft.toLocaleString(nloc),
+                          h: s.opensAt.toLocaleString(nloc),
+                        })}
+                  </p>
+                ) : s.lockOpen && !s.coinCount ? (
+                  <p className="mt-1 text-2xs text-fg-muted">{t("spend.lockOpen")}</p>
+                ) : null}
                 {s.missingMust.length ? (
                   <p className="mt-1 text-2xs text-danger">
                     {t("spend.mustHave")}: {s.missingMust.join(", ")}

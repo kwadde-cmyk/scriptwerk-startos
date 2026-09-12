@@ -28,7 +28,7 @@ interface BitcoindState {
   probe: NodeProbe | null;
   trace: DiagReport | null;
   lastCheck: NodeCheck | null;
-  lastUtxo: { height: number; coinHeights: number[] } | null;
+  lastUtxo: { height: number; coins: { height: number; amount: number }[] } | null;
   error: string | null;
   checking: boolean;
   setOpen: (open: boolean) => void;
@@ -38,7 +38,7 @@ interface BitcoindState {
   finishBridge: () => Promise<void>;
   disconnect: () => void;
   validate: (descriptor: string, network?: "mainnet" | "testnet") => Promise<void>;
-  setLastUtxo: (u: { height: number; coinHeights: number[] } | null) => void;
+  setLastUtxo: (u: { height: number; coins: { height: number; amount: number }[] } | null) => void;
 }
 
 const DEMO_PROBE: NodeProbe = {

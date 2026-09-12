@@ -1,6 +1,7 @@
 import { sdk } from './sdk'
 
 const ELECTRUM_PORT = 50001
+const BRIDGE_WAIT_MS = 2500
 
 const CANDIDATES: { packageId: string; hostId: string; source: string }[] = [
   { packageId: 'fulcrum', hostId: 'main', source: 'fulcrum' },
@@ -24,24 +25,52 @@ function asHostPort(addr: unknown): string | null {
   return null
 }
 
-/** Plaintext Electrum on the StartOS service bridge (LAN TLS is not this). */
+export async function serviceInstalled(
+  effects: Parameters<(typeof sdk)['getServiceManifest']>[0],
+  packageId: string,
+): Promise<boolean> {
+  try {
+    const manifest = await sdk.getServiceManifest(effects, packageId).once()
+    return Boolean(manifest)
+  } catch {
+    return false
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => resolve(null), ms)
+    promise.then(
+      (value) => {
+        clearTimeout(timer)
+        resolve(value)
+      },
+      () => {
+        clearTimeout(timer)
+        resolve(null)
+      },
+    )
+  })
+}
+
+/** Plaintext Electrum on the StartOS service bridge (LAN TLS is not this). Optional. */
 export async function resolveLocalElectrum(
   effects: Parameters<(typeof sdk)['host']['getBridgeAddress']>[0],
 ): Promise<{ url: string; source: string } | null> {
   for (const c of CANDIDATES) {
-    try {
-      const addr = await sdk.host
+    if (!(await serviceInstalled(effects, c.packageId))) continue
+    const addr = await withTimeout(
+      sdk.host
         .getBridgeAddress(effects, {
           packageId: c.packageId,
           hostId: c.hostId,
           internalPort: ELECTRUM_PORT,
         })
-        .once()
-      const url = asHostPort(addr)
-      if (url) return { url, source: c.source }
-    } catch {
-      /* not installed */
-    }
+        .once(),
+      BRIDGE_WAIT_MS,
+    )
+    const url = asHostPort(addr)
+    if (url) return { url, source: c.source }
   }
   return null
 }

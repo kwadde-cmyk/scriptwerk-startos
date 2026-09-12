@@ -65,7 +65,7 @@ export function UtxoScanPanel({
       }
       useBitcoind.getState().setLastUtxo({
         height: merged.height,
-        coinHeights: merged.unspents.map((u) => u.height),
+        coins: merged.unspents.map((u) => ({ height: u.height, amount: u.amount })),
       });
       if (merged.unspents.length) {
         toast.success(t("hw.utxo.found", { n: merged.unspents.length, btc: formatBtc(merged.total) }));
