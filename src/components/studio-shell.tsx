@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { ChevronsLeft, ChevronsRight } from "lucide-react";
 import { InterpreterPanel } from "@/components/interpreter-panel";
 import { ImportExportBar } from "@/components/import-export";
 import { KeyDatalist, OperatorPalette } from "@/components/operator-palette";
@@ -177,12 +178,61 @@ function usePaneWidth(key: string, fallback: number, min: number, max: number) {
   return { width, ref, onDrag };
 }
 
+function usePaneOpen(key: string, fallback = true) {
+  const [open, setOpen] = useState(fallback);
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(key);
+      if (v === "0") setOpen(false);
+      if (v === "1") setOpen(true);
+    } catch {
+      /* ignore */
+    }
+  }, [key]);
+  const toggle = useCallback(() => {
+    setOpen((cur) => {
+      const next = !cur;
+      try {
+        localStorage.setItem(key, next ? "1" : "0");
+      } catch {
+        /* ignore */
+      }
+      return next;
+    });
+  }, [key]);
+  return [open, toggle] as const;
+}
+
+function PaneToggle({
+  label,
+  onClick,
+  children,
+}: {
+  label: string;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      onClick={onClick}
+      className="inline-flex size-9 shrink-0 items-center justify-center rounded-md border border-border text-fg-muted hover:bg-muted hover:text-fg"
+    >
+      {children}
+    </button>
+  );
+}
+
 function DesktopStudio() {
   const { t } = useT();
   const expert = useStudio((s) => s.mode) === "expert";
   const [tab, setTab] = useState("stages");
   const left = usePaneWidth("scriptwerk-left-w", 300, 240, 560);
   const right = usePaneWidth("scriptwerk-right-w", 340, 260, 520);
+  const [leftOpen, toggleLeft] = usePaneOpen("scriptwerk-left-on");
+  const [rightOpen, toggleRight] = usePaneOpen("scriptwerk-right-on");
 
   useEffect(() => {
     if (!expert && tab === "ops") setTab("stages");
@@ -190,71 +240,96 @@ function DesktopStudio() {
 
   return (
     <>
-      <aside
-        ref={left.ref}
-        style={{ width: left.width }}
-        className="relative flex shrink-0 flex-col overflow-hidden border-r border-border"
-      >
-        <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
-          <TabsList className="mx-2 mt-3 shrink-0">
-            <TabsTrigger value="stages" className="flex-1 px-1.5 text-xs">
-              {t("tabs.stages")}
-            </TabsTrigger>
-            <TabsTrigger value="keys" className="flex-1 px-1.5 text-xs">
-              {t("tabs.keys")}
-            </TabsTrigger>
-            {expert ? (
-              <TabsTrigger value="ops" className="flex-1 px-1.5 text-xs">
-                {t("tabs.expert")}
-              </TabsTrigger>
-            ) : null}
-          </TabsList>
-          <TabsContent
-            value="stages"
-            className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
-          >
-            <StageBuilder />
-          </TabsContent>
-          <TabsContent
-            value="keys"
-            className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
-          >
-            <KeyBoard fill />
-          </TabsContent>
-          {expert ? (
+      {leftOpen ? (
+        <aside
+          ref={left.ref}
+          style={{ width: left.width }}
+          className="relative flex shrink-0 flex-col overflow-hidden border-r border-border"
+        >
+          <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
+            <div className="flex shrink-0 items-center gap-1 px-2 pt-3">
+              <TabsList className="min-w-0 flex-1">
+                <TabsTrigger value="stages" className="flex-1 px-1.5 text-xs">
+                  {t("tabs.stages")}
+                </TabsTrigger>
+                <TabsTrigger value="keys" className="flex-1 px-1.5 text-xs">
+                  {t("tabs.keys")}
+                </TabsTrigger>
+                {expert ? (
+                  <TabsTrigger value="ops" className="flex-1 px-1.5 text-xs">
+                    {t("tabs.expert")}
+                  </TabsTrigger>
+                ) : null}
+              </TabsList>
+              <PaneToggle label={t("pane.hideLeft")} onClick={toggleLeft}>
+                <ChevronsLeft className="size-4" />
+              </PaneToggle>
+            </div>
             <TabsContent
-              value="ops"
+              value="stages"
               className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
             >
-              <ExpertPanel pinInspector />
+              <StageBuilder />
             </TabsContent>
-          ) : null}
-        </Tabs>
-        <button
-          type="button"
-          aria-label={t("pane.resize")}
-          className="absolute top-0 right-0 z-20 h-full w-1.5 cursor-col-resize bg-transparent hover:bg-border-strong"
-          onPointerDown={(e) => left.onDrag(e, 1)}
-        />
-      </aside>
+            <TabsContent
+              value="keys"
+              className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
+            >
+              <KeyBoard fill />
+            </TabsContent>
+            {expert ? (
+              <TabsContent
+                value="ops"
+                className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
+              >
+                <ExpertPanel pinInspector />
+              </TabsContent>
+            ) : null}
+          </Tabs>
+          <button
+            type="button"
+            aria-label={t("pane.resize")}
+            className="absolute top-0 right-0 z-20 h-full w-1.5 cursor-col-resize bg-transparent hover:bg-border-strong"
+            onPointerDown={(e) => left.onDrag(e, 1)}
+          />
+        </aside>
+      ) : (
+        <aside className="flex w-11 shrink-0 flex-col items-center border-r border-border pt-3">
+          <PaneToggle label={t("pane.showLeft")} onClick={toggleLeft}>
+            <ChevronsRight className="size-4" />
+          </PaneToggle>
+        </aside>
+      )}
       <main className="flex min-w-0 flex-1 flex-col overflow-hidden bg-ink">
         <PolicyGraph />
       </main>
-      <aside
-        ref={right.ref}
-        style={{ width: right.width }}
-        className="relative flex shrink-0 flex-col overflow-hidden border-l border-border"
-      >
-        <button
-          type="button"
-          aria-label={t("pane.resize")}
-          className="absolute top-0 left-0 z-20 h-full w-1.5 cursor-col-resize bg-transparent hover:bg-border-strong"
-          onPointerDown={(e) => right.onDrag(e, -1)}
-        />
-        <div className="min-h-0 flex-1 overflow-hidden">
-          <InterpreterPanel />
-        </div>
-      </aside>
+      {rightOpen ? (
+        <aside
+          ref={right.ref}
+          style={{ width: right.width }}
+          className="relative flex shrink-0 flex-col overflow-hidden border-l border-border"
+        >
+          <button
+            type="button"
+            aria-label={t("pane.resize")}
+            className="absolute top-0 left-0 z-20 h-full w-1.5 cursor-col-resize bg-transparent hover:bg-border-strong"
+            onPointerDown={(e) => right.onDrag(e, -1)}
+          />
+          <InterpreterPanel
+            toolbarStart={
+              <PaneToggle label={t("pane.hideRight")} onClick={toggleRight}>
+                <ChevronsRight className="size-4" />
+              </PaneToggle>
+            }
+          />
+        </aside>
+      ) : (
+        <aside className="flex w-11 shrink-0 flex-col items-center border-l border-border pt-3">
+          <PaneToggle label={t("pane.showRight")} onClick={toggleRight}>
+            <ChevronsLeft className="size-4" />
+          </PaneToggle>
+        </aside>
+      )}
     </>
   );
 }

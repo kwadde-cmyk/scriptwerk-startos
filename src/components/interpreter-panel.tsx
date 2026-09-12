@@ -18,19 +18,21 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useT } from "@/lib/use-t";
 import { Check, Copy, Search } from "lucide-react";
-import { useMemo, useState, memo } from "react";
+import { useMemo, useState, memo, type ReactNode } from "react";
 import { toast } from "sonner";
 import { NodeCheckCard } from "@/components/node-rpc";
 import { SpendCheckCard } from "@/components/spend-check";
 import { ScriptHighlight } from "@/components/script-view";
 
-export const InterpreterPanel = memo(function InterpreterPanel() {
+export const InterpreterPanel = memo(function InterpreterPanel({ toolbarStart }: { toolbarStart?: ReactNode }) {
   const { t, locale } = useT();
   const root = useStudio((s) => s.root);
   const keys = useStudio((s) => s.keys);
   const reuseKeys = useStudio((s) => s.reuseKeys);
+  const [sheet, setSheet] = useState("create");
   const explained = useMemo(
     () => explainPolicy(root ?? { id: "empty", kind: "hole" }, locale, keys),
     [root, locale, keys],
@@ -42,83 +44,100 @@ export const InterpreterPanel = memo(function InterpreterPanel() {
   );
   const ms = compiled?.miniscript ?? "";
   const descriptorText = compiled?.ok ? compiled.descriptor : compiled?.error ?? t("read.noPolicy");
+  const problemCount = issues.filter((i) => i.level === "error" || i.level === "warn").length;
 
   return (
-    <ScrollArea className="h-full">
-      <div className="space-y-5 p-4">
-        <section>
-          <h2 className="text-2xs font-medium tracking-[0.14em] text-fg-subtle uppercase">
-            {t("read.title")}
-          </h2>
-          <p className="mt-2 font-display text-lg leading-snug tracking-tight text-balance">
-            {explained.title}
-          </p>
-          <ol className="mt-3 space-y-2">
-            {explained.narrative.map((line, i) => (
-              <li key={i} className="text-sm text-pretty text-fg">
-                <span className="mr-2 font-mono text-2xs text-fg-subtle">
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                {line}
-              </li>
-            ))}
-          </ol>
-        </section>
-
-        {explained.groups.length > 0 && root ? (
-          <section className="space-y-1.5">
-            {explained.groups.map((g) => (
-              <div key={g.delay} className="rounded-lg border border-border bg-surface px-3 py-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm">{blocksWhen(g.delay, locale)}</span>
-                  <Badge variant={g.delay === 0 ? "ok" : "default"}>
-                    {g.delay === 0
-                      ? t("read.now")
-                      : t("read.blocksShort", { n: g.delay.toLocaleString(numberLocale(locale)) })}
-                  </Badge>
-                </div>
-                <ul className="mt-1 space-y-0.5">
-                  {g.paths.map((p) => (
-                    <li key={p.label} className="font-mono text-2xs break-all text-fg-subtle">
-                      {p.label}
-                      {p.detail !== p.label ? ` · ${p.detail}` : ""}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </section>
-        ) : null}
-
-        <SpendCheckCard />
-
-        <section>
-          <h2 className="mb-2 text-2xs font-medium tracking-[0.14em] text-fg-subtle uppercase">
-            {t("read.check")}
-          </h2>
-          <ul className="space-y-1.5">
-            {issues.map((iss, i) => (
-              <li key={i} className="flex items-start gap-2 text-xs">
-                <Badge
-                  variant={iss.level === "error" ? "danger" : iss.level === "warn" ? "warn" : "default"}
-                >
-                  {iss.level}
-                </Badge>
-                <span className="text-pretty text-fg-muted">{iss.message}</span>
-              </li>
-            ))}
-          </ul>
-        </section>
-
-        <NodeCheckCard />
-
-        <OrderVariants />
-
-        <ScriptPeek title="Miniscript" value={ms} />
-        <ScriptPeek title="Descriptor (wsh)" value={descriptorText} />
-        <ScriptPeek title="BSMS" value={compiled?.ok ? compileBsms(compiled.descriptor) : ""} />
+    <Tabs value={sheet} onValueChange={setSheet} className="flex h-full min-h-0 flex-col">
+      <div className="flex shrink-0 items-center gap-1 px-2 pt-3">
+        {toolbarStart}
+        <TabsList className="min-w-0 flex-1">
+          <TabsTrigger value="create" className="flex-1 px-2 text-xs">
+            {t("read.sheet.create")}
+          </TabsTrigger>
+          <TabsTrigger value="check" className="flex-1 px-2 text-xs">
+            {t("read.sheet.check")}
+            {problemCount ? (
+              <span className="ml-1.5 rounded-full bg-warn/20 px-1.5 font-mono text-2xs text-warn">{problemCount}</span>
+            ) : null}
+          </TabsTrigger>
+        </TabsList>
       </div>
-    </ScrollArea>
+      <TabsContent
+        value="create"
+        className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
+      >
+        <ScrollArea className="h-full">
+          <div className="space-y-5 p-4">
+            <p className="text-2xs text-pretty text-fg-muted">{t("read.sheet.createHint")}</p>
+            <section>
+              <h2 className="text-2xs font-medium tracking-[0.14em] text-fg-subtle uppercase">{t("read.title")}</h2>
+              <p className="mt-2 font-display text-lg leading-snug tracking-tight text-balance">{explained.title}</p>
+              <ol className="mt-3 space-y-2">
+                {explained.narrative.map((line, i) => (
+                  <li key={i} className="text-sm text-pretty text-fg">
+                    <span className="mr-2 font-mono text-2xs text-fg-subtle">{String(i + 1).padStart(2, "0")}</span>
+                    {line}
+                  </li>
+                ))}
+              </ol>
+            </section>
+            {explained.groups.length > 0 && root ? (
+              <section className="space-y-1.5">
+                {explained.groups.map((g) => (
+                  <div key={g.delay} className="rounded-lg border border-border bg-surface px-3 py-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm">{blocksWhen(g.delay, locale)}</span>
+                      <Badge variant={g.delay === 0 ? "ok" : "default"}>
+                        {g.delay === 0
+                          ? t("read.now")
+                          : t("read.blocksShort", { n: g.delay.toLocaleString(numberLocale(locale)) })}
+                      </Badge>
+                    </div>
+                    <ul className="mt-1 space-y-0.5">
+                      {g.paths.map((p) => (
+                        <li key={p.label} className="font-mono text-2xs break-all text-fg-subtle">
+                          {p.label}
+                          {p.detail !== p.label ? ` · ${p.detail}` : ""}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </section>
+            ) : null}
+            <OrderVariants />
+            <ScriptPeek title="Miniscript" value={ms} />
+            <ScriptPeek title="Descriptor (wsh)" value={descriptorText} />
+            <ScriptPeek title="BSMS" value={compiled?.ok ? compileBsms(compiled.descriptor) : ""} />
+          </div>
+        </ScrollArea>
+      </TabsContent>
+      <TabsContent
+        value="check"
+        className="mt-0 min-h-0 flex-1 overflow-hidden data-[state=active]:flex data-[state=active]:flex-col"
+      >
+        <ScrollArea className="h-full">
+          <div className="space-y-5 p-4">
+            <p className="text-2xs text-pretty text-fg-muted">{t("read.sheet.checkHint")}</p>
+            <section>
+              <h2 className="mb-2 text-2xs font-medium tracking-[0.14em] text-fg-subtle uppercase">{t("read.check")}</h2>
+              <ul className="space-y-1.5">
+                {issues.map((iss, i) => (
+                  <li key={i} className="flex items-start gap-2 text-xs">
+                    <Badge variant={iss.level === "error" ? "danger" : iss.level === "warn" ? "warn" : "default"}>
+                      {iss.level}
+                    </Badge>
+                    <span className="text-pretty text-fg-muted">{iss.message}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+            <SpendCheckCard />
+            <NodeCheckCard />
+          </div>
+        </ScrollArea>
+      </TabsContent>
+    </Tabs>
   );
 });
 

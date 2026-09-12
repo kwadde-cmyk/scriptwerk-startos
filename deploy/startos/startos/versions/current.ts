@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.17:1',
+  version: '0.1.18:0',
   releaseNotes: {
     en_US:
-      'Fulcrum and Electrs stay optional: Scriptwerk starts without them, uses Fulcrum if installed, otherwise Electrs. Neither is required to run.',
+      'Descriptor pane splits into Build and Check. Desktop side panes can be hidden so the tree has more room.',
     de_DE:
-      'Fulcrum und Electrs bleiben optional: Scriptwerk startet ohne sie, nutzt Fulcrum wenn installiert, sonst Electrs. Keins von beiden ist Pflicht.',
+      'Descriptor-Tab in Erstellen und Prüfen geteilt. Desktop: linke und rechte Leiste ein- und ausblendbar, mehr Platz für den Baum.',
     es_ES:
-      'Fulcrum y Electrs son opcionales. Scriptwerk arranca sin ellos.',
+      'El descriptor se parte en Crear y Comprobar. Los paneles laterales se pueden ocultar.',
     pl_PL:
-      'Fulcrum i Electrs są opcjonalne. Scriptwerk startuje bez nich.',
+      'Karta deskryptora: Twórz i Sprawdź. Panele boczne można ukryć.',
     fr_FR:
-      'Fulcrum et Electrs restent optionnels. Scriptwerk démarre sans eux.',
+      'Onglet descripteur : Créer et Vérifier. Les panneaux latéraux se masquent.',
   },
   migrations: {
     up: async () => {},
