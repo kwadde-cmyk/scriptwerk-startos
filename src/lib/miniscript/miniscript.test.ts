@@ -422,20 +422,19 @@ describe("keys", () => {
   it("uses the device name instead of A/A1 when a note is set", () => {
     const nano = { ...emptyKey("A"), note: "NANO-S", fingerprint: "deadbeef", xpub: XPUB };
     const cold = { ...emptyKey("B"), note: "COLDCARD", fingerprint: "cafebabe", xpub: XPUB };
-    assert.equal(displayKeyToken("A", [nano, cold]), "NANO-S");
-    assert.equal(displayKeyToken("B", [nano, cold]), "COLDCARD");
+    assert.equal(displayKeyToken("A", [nano, cold]), "NANO-S (A)");
+    assert.equal(displayKeyToken("B", [nano, cold]), "COLDCARD (B)");
     assert.equal(displayKeyToken("A1", [nano, cold]), "NANO-S (A1)");
     assert.equal(displayKeyToken("C", [nano, cold]), "C");
     const withChild = {
       ...nano,
       children: [{ id: "c1", path: "48'/0'/1'/2'", xpub: XPUB, fingerprint: "deadbeef", note: "NANO-S-2" }],
     };
-    assert.equal(displayKeyToken("A1", [withChild]), "NANO-S-2");
+    assert.equal(displayKeyToken("A1", [withChild]), "NANO-S-2 (A1)");
     const root = compileStages([{ id: "s1", delay: 0, k: 2, keys: ["A", "B"] }]).root;
     const exp = explainPolicy(root, "de", [nano, cold]);
-    assert.match(exp.groups[0]?.paths[0]?.label ?? "", /NANO-S/);
-    assert.match(exp.groups[0]?.paths[0]?.label ?? "", /COLDCARD/);
-    assert.doesNotMatch(exp.narrative.join(" "), /\bA\b/);
+    assert.match(exp.groups[0]?.paths[0]?.label ?? "", /NANO-S \(A\)/);
+    assert.match(exp.groups[0]?.paths[0]?.label ?? "", /COLDCARD \(B\)/);
   });
 
   it("flags empty keys and missing child accounts", () => {

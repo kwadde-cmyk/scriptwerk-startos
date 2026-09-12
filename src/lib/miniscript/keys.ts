@@ -851,11 +851,12 @@ export function displayKeyToken(token: string, keys: KeyEntry[]): string {
   if (acc != null && acc > 0) {
     const child = childForAccount(k, acc);
     const childNote = child?.note.trim();
-    if (childNote) return childNote;
+    if (childNote) return `${childNote} (${token})`;
     if (masterNote) return `${masterNote} (${token})`;
     return token;
   }
-  return masterNote || token;
+  if (masterNote) return `${masterNote} (${token})`;
+  return token;
 }
 
 export function keyOriginExpr(k: {

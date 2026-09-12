@@ -6,6 +6,7 @@ import {
   keyOriginExpr,
   keyRoleLabel,
   childRoleLabel,
+  parseAccountIndex,
   shortXpub,
   type KeyChild,
   type KeyEntry,
@@ -201,7 +202,7 @@ function RecoveryDocument({ print = false }: { print?: boolean }) {
             if (k.xpub.trim() || k.fingerprint) {
               rows.push({
                 id: k.id,
-                title: k.note.trim() || keyRoleLabel(k.name),
+                title: k.note.trim() ? `${k.note.trim()} (${k.name})` : keyRoleLabel(k.name),
                 sub: `${formatFingerprint(k.fingerprint) || "—"} · ${keyRoleLabel(k.name)} · ${k.derivation || "—"}`,
                 payload: keyOriginExpr(k),
               });
@@ -250,7 +251,7 @@ function RecoveryDocument({ print = false }: { print?: boolean }) {
         <h3 className="text-[10px] font-semibold tracking-wide uppercase">{t("recovery.watchonly")}</h3>
         <p className="text-xs text-neutral-600">{t("recovery.watchonlyHint")}</p>
         <div className="mt-2 flex flex-col items-start gap-3 sm:flex-row">
-          {descriptor ? <SheetQr value={descriptor} size={print ? 140 : 120} label={t("recovery.watchonly")} /> : null}
+          {descriptor ? <SheetQr value={descriptor} size={print ? 220 : 184} label={t("recovery.watchonly")} /> : null}
           <p className="min-w-0 break-all font-mono text-[9px] leading-relaxed">{descriptor || "—"}</p>
         </div>
       </section>
@@ -263,9 +264,11 @@ function RecoveryDocument({ print = false }: { print?: boolean }) {
 function childRow(k: KeyEntry, c: KeyChild) {
   const role = childRoleLabel(k.name, c.path);
   const note = c.note.trim() || k.note.trim();
+  const acc = parseAccountIndex(c.path);
+  const token = acc != null && acc > 0 ? `${k.name}${acc}` : k.name;
   return {
     id: c.id,
-    title: note ? `${note} (${role})` : role,
+    title: note ? `${note} (${token})` : role,
     sub: `${formatFingerprint(c.fingerprint || k.fingerprint) || "—"} · ${role} · ${c.path}`,
     payload: keyOriginExpr({
       fingerprint: c.fingerprint || k.fingerprint,

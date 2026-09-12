@@ -11,6 +11,8 @@ export function QrPreview({ value, label, compact }: { value: string; label: str
   const [src, setSrc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [big, setBig] = useState(false);
+  const box = compact ? 160 : 360;
+  const cls = compact ? "size-40" : "size-[22.5rem]";
 
   useEffect(() => {
     let cancelled = false;
@@ -23,7 +25,7 @@ export function QrPreview({ value, label, compact }: { value: string; label: str
     QRCode.toDataURL(value, {
       errorCorrectionLevel: value.length > 800 ? "L" : "M",
       margin: 1,
-      width: 640,
+      width: compact ? 640 : 880,
       color: { dark: "#0b0c0e", light: "#ffffff" },
     })
       .then((url) => {
@@ -35,7 +37,7 @@ export function QrPreview({ value, label, compact }: { value: string; label: str
     return () => {
       cancelled = true;
     };
-  }, [value, t]);
+  }, [value, t, compact]);
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -49,9 +51,9 @@ export function QrPreview({ value, label, compact }: { value: string; label: str
           <img
             src={src}
             alt={t("qr.alt", { label })}
-            className={compact ? "size-40" : "size-64"}
-            width={compact ? 160 : 256}
-            height={compact ? 160 : 256}
+            className={cls}
+            width={box}
+            height={box}
           />
         </button>
       ) : (
@@ -59,7 +61,7 @@ export function QrPreview({ value, label, compact }: { value: string; label: str
           className={
             compact
               ? "flex size-40 items-center justify-center rounded-lg border border-border bg-surface text-xs text-fg-muted"
-              : "flex size-64 items-center justify-center rounded-lg border border-border bg-surface text-xs text-fg-muted"
+              : "flex size-[22.5rem] items-center justify-center rounded-lg border border-border bg-surface text-xs text-fg-muted"
           }
         >
           {error ?? t("qr.building")}
@@ -67,7 +69,7 @@ export function QrPreview({ value, label, compact }: { value: string; label: str
       )}
       {error ? <p className="text-xs text-danger">{error}</p> : null}
       <Dialog open={big} onOpenChange={setBig}>
-        <DialogContent className="flex w-[min(28rem,calc(100vw-1.5rem))] flex-col items-center gap-3 p-4">
+        <DialogContent className="flex w-[min(32rem,calc(100vw-1.5rem))] flex-col items-center gap-3 p-4">
           <DialogTitle className="sr-only">{label}</DialogTitle>
           {src ? (
             <img src={src} alt={t("qr.alt", { label })} className="w-full rounded-lg bg-paper p-3" />
@@ -265,7 +267,7 @@ export function SheetQr({
   size?: number;
   label?: string;
 }) {
-  const width = Math.min(256, Math.max(96, size * 2));
+  const width = Math.min(512, Math.max(96, size * 2));
   const level = value.length > 800 ? "L" : "M";
   const cacheKey = qrCacheKey(value, width, level);
   const [src, setSrc] = useState<string | null>(() => qrCache.get(cacheKey) ?? null);

@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.18:0',
+  version: '0.1.19:0',
   releaseNotes: {
     en_US:
-      'Descriptor pane splits into Build and Check. Desktop side panes can be hidden so the tree has more room.',
+      'Named masters show (A) like children (A1). Larger descriptor QR. Script check uses the normal button inside the connected node card.',
     de_DE:
-      'Descriptor-Tab in Erstellen und Prüfen geteilt. Desktop: linke und rechte Leiste ein- und ausblendbar, mehr Platz für den Baum.',
+      'Benannte Master mit (A), wie Childs (A1). Größerer Descriptor-QR. Script prüfen als normaler Button im verbundenen Node-Rahmen.',
     es_ES:
-      'El descriptor se parte en Crear y Comprobar. Los paneles laterales se pueden ocultar.',
+      'Los masters con nombre muestran (A). QR de descriptor más grande. Comprobar script en la tarjeta de nodo.',
     pl_PL:
-      'Karta deskryptora: Twórz i Sprawdź. Panele boczne można ukryć.',
+      'Nazwane mastery z (A). Większy QR deskryptora. Sprawdź skrypt w ramce węzła.',
     fr_FR:
-      'Onglet descripteur : Créer et Vérifier. Les panneaux latéraux se masquent.',
+      'Les masters nommés affichent (A). QR descripteur plus grand. Vérifier le script dans le cadre du nœud.',
   },
   migrations: {
     up: async () => {},

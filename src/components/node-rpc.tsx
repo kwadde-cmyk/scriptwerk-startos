@@ -342,7 +342,6 @@ function NodeDialogBody() {
           )}
           <Button
             type="button"
-            variant="secondary"
             disabled={busy || checking || !ready || !compiled?.ok}
             onClick={() =>
               void run(async () => {
@@ -401,32 +400,40 @@ export function NodeCheckCard() {
   const compiled = compileDescriptorCached(root, keys, reuseKeys);
   const ready = status === "ready";
 
+  function runCheck() {
+    if (!ready) {
+      setOpen(true);
+      return;
+    }
+    if (compiled?.ok) void validate(compiled.descriptor, network);
+  }
+
+  const checkBtn = (
+    <Button type="button" disabled={!compiled?.ok || checking} onClick={runCheck}>
+      {checking ? t("node.loading.check") : ready ? t("node.check") : t("node.open")}
+    </Button>
+  );
+
+  if (!ready) {
+    return (
+      <section className="space-y-2">
+        <h2 className="text-2xs font-medium tracking-[0.14em] text-fg-subtle uppercase">{t("node.checkTitle")}</h2>
+        <p className="text-xs text-fg-muted">{t("node.needConn")}</p>
+        {checkBtn}
+        {error ? <p className="text-xs text-danger">{localizeMessage(locale, error)}</p> : null}
+      </section>
+    );
+  }
+
   return (
     <section className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-2xs font-medium tracking-[0.14em] text-fg-subtle uppercase">{t("node.checkTitle")}</h2>
-        <Button
-          variant="ghost"
-          size="sm"
-          className="h-8"
-          disabled={!compiled?.ok || checking}
-          onClick={() => {
-            if (!ready) {
-              setOpen(true);
-              return;
-            }
-            if (compiled?.ok) void validate(compiled.descriptor, network);
-          }}
-        >
-          {checking ? t("node.loading.check") : ready ? t("node.check") : t("node.open")}
-        </Button>
-      </div>
       {checking ? <NodeLoading busy={false} /> : null}
-      <p className="text-xs text-fg-muted">
-        {ready ? (demo ? t("node.demoOn") : t("node.connected")) : t("node.needConn")}
-      </p>
       {error ? <p className="text-xs text-danger">{localizeMessage(locale, error)}</p> : null}
-      {lastCheck ? <CheckResult /> : null}
+      <div className="space-y-2 rounded-lg border border-border bg-surface px-3 py-3">
+        <p className="text-xs text-fg-muted">{demo ? t("node.demoOn") : t("node.connected")}</p>
+        {lastCheck ? <CheckResult bare /> : null}
+        {checkBtn}
+      </div>
     </section>
   );
 }
@@ -585,17 +592,19 @@ function TracePanel() {
   );
 }
 
-function CheckResult() {
+function CheckResult({ bare = false }: { bare?: boolean }) {
   const { t } = useT();
   const lastCheck = useBitcoind((s) => s.lastCheck);
   const status = useBitcoind((s) => s.status);
   const demo = useBitcoind((s) => s.demo);
   if (!lastCheck) return null;
   const utxoOn = status === "ready" && !demo && lastCheck.source === "core" && lastCheck.issolvable;
-  return (
-    <div className="rounded-lg border border-border bg-surface px-3 py-2 text-xs">
-      <p className="text-2xs font-medium tracking-[0.14em] text-fg-subtle uppercase">{t("node.checkTitle")}</p>
-      <p className="mt-1 text-2xs text-pretty text-fg-muted">{t("node.check.hint")}</p>
+  const body = (
+    <>
+      {bare ? null : (
+        <p className="text-2xs font-medium tracking-[0.14em] text-fg-subtle uppercase">{t("node.checkTitle")}</p>
+      )}
+      <p className={`${bare ? "" : "mt-1 "}text-2xs text-pretty text-fg-muted`}>{t("node.check.hint")}</p>
       <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
         <Badge variant={lastCheck.issolvable ? "ok" : "warn"}>
           {lastCheck.issolvable ? t("node.solvable") : t("node.unsolvable")}
@@ -636,6 +645,8 @@ function CheckResult() {
         enabled={utxoOn}
         hint={utxoOn ? t("hw.utxo.blurb") : t("hw.utxo.needCheck")}
       />
-    </div>
+    </>
   );
+  if (bare) return <div className="space-y-0">{body}</div>;
+  return <div className="rounded-lg border border-border bg-surface px-3 py-2 text-xs">{body}</div>;
 }
