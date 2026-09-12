@@ -10,6 +10,7 @@ import {
 } from "./compile.ts";
 import { explainPolicy } from "./explain.ts";
 import { decodeLibrary, encodeLibrary, peekChecksum, type SavedPolicy } from "../policy-library.ts";
+import { electrumHostAllowed, parseElectrumUrl, scriptPubKeyFromAddress, scripthashForAddress } from "../electrum.ts";
 import {
   applyKeyMaterial,
   attachChildOrReplace,
@@ -1210,6 +1211,33 @@ describe("policy library", () => {
     assert.deepEqual(decodeLibrary("[]"), []);
     assert.deepEqual(decodeLibrary("{"), []);
     assert.deepEqual(decodeLibrary('[{"name":"x"}]'), []);
+  });
+});
+
+describe("electrum helpers", () => {
+  it("decodes BIP-173 P2WPKH", () => {
+    assert.equal(
+      scriptPubKeyFromAddress("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4"),
+      "0014751e76e8199196d454941c45d1b3a323f1433bd6",
+    );
+  });
+
+  it("builds an electrum scripthash", async () => {
+    const h = await scripthashForAddress("bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4");
+    assert.equal(h.length, 64);
+    assert.match(h, /^[0-9a-f]+$/);
+  });
+
+  it("parses electrum URLs and LAN hosts", () => {
+    assert.deepEqual(parseElectrumUrl("capable-dosage.local:50001"), {
+      host: "capable-dosage.local",
+      port: 50001,
+      tls: false,
+    });
+    assert.equal(parseElectrumUrl("ssl://node.local:50002")?.tls, true);
+    assert.equal(electrumHostAllowed("192.168.178.55"), true);
+    assert.equal(electrumHostAllowed("8.8.8.8"), false);
+    assert.equal(electrumHostAllowed("electrs.local"), true);
   });
 });
 

@@ -77,6 +77,7 @@ function NodeDialogBody() {
   const url = useBitcoind((s) => s.url);
   const username = useBitcoind((s) => s.username);
   const password = useBitcoind((s) => s.password);
+  const electrum = useBitcoind((s) => s.electrum);
   const kind = useBitcoind((s) => s.kind);
   const patch = useBitcoind((s) => s.patch);
   const status = useBitcoind((s) => s.status);
@@ -285,6 +286,18 @@ function NodeDialogBody() {
         <p className="text-2xs text-pretty text-fg-muted">
           {proxyOn && canLock ? t("node.startos.help") : startos ? t("node.startos.rpcUser") : t("node.lanHelp")}
         </p>
+        <div>
+          <Label htmlFor="node-electrum">{t("node.electrum")}</Label>
+          <Input
+            id="node-electrum"
+            name="electrum"
+            value={electrum}
+            onChange={(e) => patch({ electrum: e.target.value })}
+            placeholder="host.local:50001"
+            className="mt-1.5 font-mono text-xs"
+          />
+          <p className="mt-1 text-2xs text-pretty text-fg-muted">{t("node.electrumHint")}</p>
+        </div>
         {ipWarn ? <p className="text-2xs text-pretty text-warn">{t("node.startos.ipWarn")}</p> : null}
 
         <NodeLoading busy={busy} />

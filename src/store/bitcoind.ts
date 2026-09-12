@@ -19,6 +19,7 @@ interface BitcoindState {
   url: string;
   username: string;
   password: string;
+  electrum: string;
   kind: "core" | "startos";
   demo: boolean;
   open: boolean;
@@ -30,7 +31,7 @@ interface BitcoindState {
   error: string | null;
   checking: boolean;
   setOpen: (open: boolean) => void;
-  patch: (p: Partial<Pick<BitcoindState, "url" | "username" | "password" | "kind">>) => void;
+  patch: (p: Partial<Pick<BitcoindState, "url" | "username" | "password" | "kind" | "electrum">>) => void;
   connectDemo: () => void;
   connectLive: (network?: "mainnet" | "testnet") => Promise<void>;
   finishBridge: () => Promise<void>;
@@ -53,6 +54,7 @@ export const useBitcoind = create<BitcoindState>()(
       url: "127.0.0.1",
       username: "",
       password: "",
+      electrum: "",
       kind: "core",
       demo: false,
       open: false,
@@ -258,6 +260,7 @@ export const useBitcoind = create<BitcoindState>()(
         url: s.url,
         username: s.username,
         kind: s.kind,
+        electrum: s.electrum,
       }),
     },
   ),

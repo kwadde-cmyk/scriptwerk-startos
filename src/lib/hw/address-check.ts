@@ -134,6 +134,7 @@ export interface UtxoHit {
   amount: number;
   height: number;
   desc: string;
+  address?: string;
 }
 
 export interface UtxoScanResult {

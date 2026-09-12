@@ -1,5 +1,7 @@
 /** Shared Bitcoin Core JSON-RPC proxy. Used by Nitro middleware and Vite. */
 
+import { attachElectrumProxy } from "./electrum-proxy.mjs";
+
 export function bitcoindUpstream() {
   const url = String(process.env.BITCOIND_RPC_URL ?? "").trim();
   return url ? url.replace(/\/+$/, "") : "";
@@ -62,6 +64,7 @@ export async function forwardBitcoindRpc(input) {
  * @param {{ use: (fn: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, next: () => void) => void) => void }} middlewares
  */
 export function attachBitcoindProxy(middlewares) {
+  attachElectrumProxy(middlewares);
   middlewares.use(async (req, res, next) => {
     const path = String(req.url ?? "").split("?")[0];
     if (path === "/bitcoind-rpc/info") {

@@ -45,7 +45,7 @@ export function UtxoScanPanel({
       const next = await scanDescriptorUtxos(
         { url: node.url, username: node.username, password: node.password },
         compiled.descriptor,
-        { count: n, receive, change },
+        { count: n, receive, change, electrum: node.electrum },
       );
       setResult(next);
       if (next.unspents.length) {

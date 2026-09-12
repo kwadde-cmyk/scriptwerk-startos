@@ -1,7 +1,6 @@
 import { checksumOf, coreCanonicalBody, stripChecksum } from "../miniscript/checksum.ts";
 import { rewriteSortedMultiForCore } from "../miniscript/compile.ts";
 import {
-  parseScantxoutset,
   utxoScanObjects,
   type UtxoScanResult,
 } from "../hw/address-check.ts";
@@ -419,30 +418,35 @@ export async function deriveAddressRange(
 export async function scanDescriptorUtxos(
   config: BitcoindConfig,
   descriptor: string,
-  opts: { count: number; receive: boolean; change: boolean },
+  opts: { count: number; receive: boolean; change: boolean; electrum?: string },
 ): Promise<UtxoScanResult> {
   const objects = utxoScanObjects(descriptor, opts.count, opts.receive, opts.change);
   if (!objects.length) throw new Error("hw.utxo.none");
-  const scan = objects.map((o) => ({
-    desc: rewriteSortedMultiForCore(o.desc),
-    range: o.range,
-  }));
-  const start = () => jsonRpc(config, "scantxoutset", ["start", scan]);
-  try {
-    return parseScantxoutset(await start());
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "";
-    if (/already in progress|scan already/i.test(msg)) {
-      try {
-        await jsonRpc(config, "scantxoutset", ["abort"]);
-      } catch {
-        /* still retry */
-      }
-      return parseScantxoutset(await start());
-    }
-    if (/not found|forbidden|not allowed|whitelist|unauthorized method/i.test(msg)) {
-      throw new Error("hw.utxo.denied");
-    }
-    throw e;
+  const addresses: string[] = [];
+  for (const o of objects) {
+    const desc = rewriteSortedMultiForCore(o.desc);
+    const list = await deriveAddressRange(config, desc, o.range[0], o.range[1]);
+    addresses.push(...list);
   }
+  const unique = [...new Set(addresses)];
+  const res = await fetch("/electrum", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    cache: "no-store",
+    body: JSON.stringify({ addresses: unique, server: opts.electrum ?? "" }),
+  });
+  if (res.status === 404) throw new Error("hw.utxo.needElectrum");
+  const body = (await res.json().catch(() => null)) as {
+    result?: { unspents?: UtxoScanResult["unspents"]; total?: number; height?: number };
+    error?: { message?: string };
+  } | null;
+  if (!body) throw new Error("hw.utxo.bad");
+  if (body.error?.message) throw new Error(body.error.message);
+  if (res.status >= 400) throw new Error(body.error?.message || "hw.utxo.needElectrum");
+  const unspents = Array.isArray(body.result?.unspents) ? body.result.unspents : [];
+  return {
+    height: Number(body.result?.height) || 0,
+    total: Number(body.result?.total) || 0,
+    unspents,
+  };
 }

@@ -90,6 +90,7 @@ SCRIPTWERK_PORT=${PORT}
 BITCOIND_RPC_URL=${RPC_URL}
 BITCOIND_RPC_USER=${RPC_USER}
 BITCOIND_RPC_PASSWORD=${RPC_PASS}
+ELECTRUM_URL=${ELECTRUM_URL-}
 EOF
 
 if need_cmd docker && (docker compose version >/dev/null 2>&1 || need_cmd docker-compose); then
