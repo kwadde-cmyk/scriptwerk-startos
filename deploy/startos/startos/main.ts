@@ -1,4 +1,5 @@
 import { RPC_HOST_ID, RPC_PORT } from './bitcoindRpc'
+import { resolveLocalElectrum } from './electrum'
 import { storeJson } from './fileModels/store.json'
 import { i18n } from './i18n'
 import { sdk } from './sdk'
@@ -16,12 +17,19 @@ export const main = sdk.setupMain(async ({ effects }) => {
     })
     .once()
 
-  const env: Record<string, string> = { SCRIPTWERK_BUILD: '0.1.8' }
+  const env: Record<string, string> = { SCRIPTWERK_BUILD: '0.1.16' }
   if (rpcAddr && store?.rpcUser && store.rpcPassword) {
     env.BITCOIND_RPC_URL = `http://${rpcAddr}`
     env.BITCOIND_RPC_USER = store.rpcUser
     env.BITCOIND_RPC_PASSWORD = store.rpcPassword
     env.BITCOIND_RPC_SOURCE = 'startos'
+  }
+
+  const electrum = await resolveLocalElectrum(effects)
+  if (electrum) {
+    env.ELECTRUM_URL = electrum.url
+    env.ELECTRUM_SOURCE = electrum.source
+    console.info(`${i18n('Using local Electrum server')}: ${electrum.source} ${electrum.url}`)
   }
 
   return sdk.Daemons.of(effects).addDaemon('primary', {

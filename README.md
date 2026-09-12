@@ -19,7 +19,7 @@ Desktop and mobile, English / German. The Bitcoin node may live on another machi
 - **Saved policies** — named copies in this browser (same name overwrites). Load restores stages, keys and expert flags.
 - **Recovery sheet** — print stages, fingerprints, checksum and the watch-only descriptor. No seed, no HMAC.
 - **Bitcoin Core** — `getdescriptorinfo` via host proxy or node bridge. On StartOS: optional dependency; Scriptwerk creates RPC user `scriptwerk_xxxx` itself. Self-host + remote StartOS: use that RPC user (not the `scriptwerk` placeholder). HTTP 401 = wrong user/password; the diagnosis shows the name and password length.
-- **Hardware** — Ledger Bitcoin app and BitBox02 (WebHID), demo without a device. Register the policy, then compare receive/change addresses from the device with Bitcoin Core. After a full match (or after Core accepts the descriptor): **Check UTXOs** asks Electrs/Fulcrum for the first N receive and change addresses (default 20). Bitcoin Core only derives addresses — Scriptwerk does not run `scantxoutset` (that scan times out on a Pi). Set Electrum in the Node dialog, e.g. `host.local:50001`. Watch-only is the descriptor (not a single wallet xpub); cosigner account xpubs sit next to it. Copy icons on addresses and fingerprints. Ledger HMAC stays in this Scriptwerk session and does not replace Nunchuk/Sparrow. BitBox stores the policy on the device (firmware 9.15+). After a full match: check the same addresses in wallet software.
+- **Hardware** — Ledger Bitcoin app and BitBox02 (WebHID), demo without a device. Register the policy, then compare receive/change addresses from the device with Bitcoin Core. After a full match (or after Core accepts the descriptor): **Check UTXOs** asks Electrs/Fulcrum for the first N receive and change addresses (default 20). Bitcoin Core only derives addresses — Scriptwerk does not run `scantxoutset` (that scan times out on a Pi). On StartOS, Fulcrum (preferred) or Electrs on the same device is used automatically over the internal bridge. Self-host: set Electrum in the Node dialog, e.g. `host.local:50001`. Watch-only is the descriptor (not a single wallet xpub); cosigner account xpubs sit next to it. Copy icons on addresses and fingerprints. Ledger HMAC stays in this Scriptwerk session and does not replace Nunchuk/Sparrow. BitBox stores the policy on the device (firmware 9.15+). After a full match: check the same addresses in wallet software.
 - **Self-host** — one script for Debian / Raspberry Pi (Docker or Node)
 - **StartOS** — wrapper in `deploy/startos`, sideload the `.s9pk` or Community Registry
 
@@ -127,6 +127,8 @@ make arm    # scriptwerk_aarch64.s9pk
 
 In the StartOS GUI enable **Bitcoin Core** on Scriptwerk. Scriptwerk creates the RPC user `scriptwerk_xxxx` itself.
 
+For UTXO lookup, enable **Fulcrum** (preferred) or **Electrs** on the same device. Scriptwerk talks to it over the internal StartOS network (plaintext port 50001). You do not paste the LAN `ssl://` wallet address.
+
 Community Registry: send the public repo to [submissions@start9.com](mailto:submissions@start9.com). Tag form `v{upstream}_{downstream}` is in `deploy/startos/UPDATING.md`.
 
 ## License / notice
@@ -158,7 +160,7 @@ Desktop und Mobil, Deutsch/Englisch. Bitcoin-Node darf auf einer anderen Maschin
 - **Gespeicherte Policies** — benannte Kopien in diesem Browser (gleicher Name überschreibt). Laden stellt Stufen, Keys und Expert-Flags wieder her.
 - **Recovery-Blatt** — Stufen, Fingerprints, Checksumme und Watch-only-Descriptor drucken. Kein Seed, kein HMAC.
 - **Bitcoin Core** — `getdescriptorinfo` über Host-Proxy oder Node-Brücke. Auf StartOS: optionale Abhängigkeit; Scriptwerk legt RPC-Nutzer `scriptwerk_xxxx` selbst an. Self-host + Remote-StartOS: diesen RPC-Nutzer verwenden (nicht den Platzhalter `scriptwerk`). HTTP 401 = falscher Nutzer/Passwort; die Diagnose zeigt Name und Passwortlänge.
-- **Hardware** — Ledger Bitcoin-App und BitBox02 (WebHID), Demo ohne Gerät. Policy registrieren, dann Empfangs-/Wechsel-Adressen vom Gerät mit Bitcoin Core abgleichen. Nach vollständigem Match (oder nachdem Core den Descriptor bestätigt): **Prüfe auf UTXOs** fragt Electrs/Fulcrum nach den ersten N Empfangs- und Wechseladressen (Standard 20). Bitcoin Core leitet nur Adressen ab — kein `scantxoutset` (das läuft auf einem Pi in Timeouts). Electrum im Node-Dialog, z. B. `host.local:50001`. Watch-only ist der Descriptor (kein einzelner Wallet-xpub); daneben die Account-xpubs der Cosigner. Kopier-Icons an Adressen und Fingerprints. Ledger-HMAC nur in dieser Scriptwerk-Session, ersetzt nicht Nunchuk/Sparrow. BitBox speichert die Policy auf dem Gerät (Firmware 9.15+). Nach vollständigem Match: dieselben Adressen in der Walletsoftware prüfen.
+- **Hardware** — Ledger Bitcoin-App und BitBox02 (WebHID), Demo ohne Gerät. Policy registrieren, dann Empfangs-/Wechsel-Adressen vom Gerät mit Bitcoin Core abgleichen. Nach vollständigem Match (oder nachdem Core den Descriptor bestätigt): **Prüfe auf UTXOs** fragt Electrs/Fulcrum nach den ersten N Empfangs- und Wechseladressen (Standard 20). Bitcoin Core leitet nur Adressen ab — kein `scantxoutset` (das läuft auf einem Pi in Timeouts). Auf StartOS wird Fulcrum (bevorzugt) oder Electrs auf demselben Gerät intern angebunden. Self-host: Electrum im Node-Dialog, z. B. `host.local:50001`. Watch-only ist der Descriptor (kein einzelner Wallet-xpub); daneben die Account-xpubs der Cosigner. Kopier-Icons an Adressen und Fingerprints. Ledger-HMAC nur in dieser Scriptwerk-Session, ersetzt nicht Nunchuk/Sparrow. BitBox speichert die Policy auf dem Gerät (Firmware 9.15+). Nach vollständigem Match: dieselben Adressen in der Walletsoftware prüfen.
 - **Selbst hosten** — ein Skript für Debian / Raspberry Pi (Docker oder Node)
 - **StartOS** — Wrapper in `deploy/startos`, Sideload der `.s9pk` oder Community-Registry
 
@@ -265,6 +267,8 @@ make arm    # scriptwerk_aarch64.s9pk
 ```
 
 In der StartOS-GUI bei Scriptwerk **Bitcoin Core** einschalten. Scriptwerk legt den RPC-Nutzer `scriptwerk_xxxx` selbst an.
+
+Für UTXOs **Fulcrum** (bevorzugt) oder **Electrs** auf demselben Gerät einschalten. Scriptwerk spricht intern mit dem Klartext-Port 50001 — nicht die LAN-`ssl://`-Adresse aus Interfaces.
 
 Community-Registry: öffentliches Repo an [submissions@start9.com](mailto:submissions@start9.com). Tag-Form `v{upstream}_{downstream}` steht in `deploy/startos/UPDATING.md`.
 

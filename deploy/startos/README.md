@@ -18,13 +18,15 @@ Volume `main` is mounted at `/data` in the UI container. StartOS writes package 
 
 Bitcoin Core (`bitcoind`) is optional. When enabled, Scriptwerk expects Core to be running and healthy, creates a unique RPC user `scriptwerk_` plus random suffix (Core usernames cannot contain a hyphen), and talks to Core over the internal StartOS network. No volume from Core is mounted. If Core is off, the studio still runs; the Node dialog can point at another RPC.
 
+Fulcrum (`fulcrum`) and Electrs (`electrs`) are optional Electrum servers. Scriptwerk prefers Fulcrum, then Electrs, and uses `getBridgeAddress` on plaintext port 50001 (the LAN `ssl://` wallet address is not used). UTXO lookup then talks to that host from the Scriptwerk container. If neither is installed, enter an Electrum host in the Node dialog.
+
 ## Network Access and Interfaces
 
 Interface `ui` is type `ui`, HTTP, internal port from `uiPort`, path `/`. StartOS terminates TLS on the LAN `.local` address. There is no separate API or P2P interface. Outbound RPC to Core uses the injected bridge address, not a public port.
 
 ## Installation and First-Run Flow
 
-Install from a registry or sideload the `.s9pk`. Start the service and open **Interfaces → UI**. If Bitcoin Core should check descriptors on this device, enable the Bitcoin Core dependency and complete the one-time task that creates the RPC user. Then open the Node dialog: it is locked on those credentials. Unlock only to reach a different node; Reset restores the StartOS values.
+Install from a registry or sideload the `.s9pk`. Start the service and open **Interfaces → UI**. If Bitcoin Core should check descriptors on this device, enable the Bitcoin Core dependency and complete the one-time task that creates the RPC user. Then open the Node dialog: it is locked on those credentials. Unlock only to reach a different node; Reset restores the StartOS values. Enable Fulcrum or Electrs for UTXO lookup; the Node dialog fills that host itself.
 
 ## Actions
 

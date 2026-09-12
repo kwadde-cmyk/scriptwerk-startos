@@ -10,8 +10,9 @@ export function electrumEnvUrl() {
 
 export function electrumInfo() {
   const url = electrumEnvUrl();
-  if (!url) return { configured: false, url: "", locked: false };
-  return { configured: true, url, locked: true };
+  const source = String(process.env.ELECTRUM_SOURCE ?? "").trim();
+  if (!url) return { configured: false, url: "", locked: false, source: "" };
+  return { configured: true, url, locked: true, source };
 }
 
 function parseTarget(raw) {
@@ -182,9 +183,9 @@ async function electrumBatch(target, calls) {
 }
 
 export async function lookupElectrumUtxos(addresses, serverFromClient) {
-  const env = parseTarget(electrumEnvUrl());
   const fromUi = parseTarget(serverFromClient);
-  const target = env || fromUi;
+  const env = parseTarget(electrumEnvUrl());
+  const target = fromUi || env;
   if (!target) {
     return { status: 404, body: JSON.stringify({ error: { message: "hw.utxo.needElectrum" } }) };
   }

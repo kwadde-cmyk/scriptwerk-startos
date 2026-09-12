@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.15:0',
+  version: '0.1.16:0',
   releaseNotes: {
     en_US:
-      'UTXO check uses Electrs/Fulcrum (listunspent), not Bitcoin Core scantxoutset. Enter the Electrum host in the Node dialog (LAN only). Core only derives addresses.',
+      'On StartOS, UTXO lookup uses Fulcrum or Electrs on this device over the internal bridge. No LAN ssl:// address needed. Self-host still enters Electrum in the Node dialog.',
     de_DE:
-      'UTXO-Prüfung über Electrs/Fulcrum (listunspent), nicht über scantxoutset in Core. Electrum-Host im Node-Dialog (nur Heimnetz). Core leitet nur Adressen ab.',
+      'Auf StartOS nutzt die UTXO-Prüfung Fulcrum oder Electrs auf diesem Gerät über die interne Brücke. Keine LAN-ssl://-Adresse nötig. Self-host trägt Electrum weiter im Node-Dialog ein.',
     es_ES:
-      'La comprobación UTXO usa Electrs/Fulcrum, no scantxoutset. Indica el host Electrum en el diálogo Node (solo LAN).',
+      'En StartOS, UTXO usa Fulcrum o Electrs de este dispositivo por el puente interno. Sin dirección ssl:// de LAN.',
     pl_PL:
-      'Skan UTXO przez Electrs/Fulcrum zamiast scantxoutset. Host Electrum w oknie Node (tylko LAN).',
+      'Na StartOS skan UTXO używa Fulcrum lub Electrs na tym urządzeniu przez most wewnętrzny.',
     fr_FR:
-      'Vérification UTXO via Electrs/Fulcrum, plus scantxoutset. Hôte Electrum dans le dialogue Node (LAN uniquement).',
+      'Sur StartOS, les UTXO passent par Fulcrum ou Electrs de cet appareil via le pont interne.',
   },
   migrations: {
     up: async () => {},

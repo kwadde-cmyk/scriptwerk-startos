@@ -17,6 +17,7 @@ export default {
     12: 'Kollidierenden RPC-Nutzer entfernen, damit Scriptwerk den eigenen anlegen kann',
     13: 'RPC-Nutzer löschen',
     14: 'Vorhandene RPC-Nutzer',
+    15: 'Lokaler Electrum-Server',
   },
   es_ES: {
     0: 'Iniciando Scriptwerk',
@@ -34,6 +35,7 @@ export default {
     12: 'Quitar el usuario RPC en conflicto para que Scriptwerk cree el suyo',
     13: 'Eliminar usuarios RPC',
     14: 'Usuarios RPC existentes',
+    15: 'Servidor Electrum local',
   },
   pl_PL: {
     0: 'Uruchamianie Scriptwerk',
@@ -51,6 +53,7 @@ export default {
     12: 'Usuń kolidującego użytkownika RPC, aby Scriptwerk mógł utworzyć własnego',
     13: 'Usuń użytkowników RPC',
     14: 'Istniejący użytkownicy RPC',
+    15: 'Lokalny serwer Electrum',
   },
   fr_FR: {
     0: 'Démarrage de Scriptwerk',
@@ -68,5 +71,6 @@ export default {
     12: 'Retirer l’utilisateur RPC en conflit pour que Scriptwerk crée le sien',
     13: 'Supprimer les utilisateurs RPC',
     14: 'Utilisateurs RPC existants',
+    15: 'Serveur Electrum local',
   },
 } satisfies Record<string, LangDict>

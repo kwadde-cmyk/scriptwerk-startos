@@ -22,7 +22,7 @@ import { CopyButton } from "@/components/copy-button";
 import { UtxoScanPanel } from "@/components/utxo-scan";
 import { Loader2, Server } from "lucide-react";
 import { toast } from "sonner";
-import { defaultRpcPort, hostProxyAvailable, hostProxyInfo, isLanIpUrl, looksLikeStartos, normalizeRpcUrl, setUseHostProxy } from "@/lib/bitcoind/rpc";
+import { defaultRpcPort, hostElectrumInfo, hostProxyAvailable, hostProxyInfo, isLanIpUrl, looksLikeStartos, normalizeRpcUrl, setUseHostProxy } from "@/lib/bitcoind/rpc";
 
 export function NodeButton() {
   const { t } = useT();
@@ -100,9 +100,11 @@ function NodeDialogBody() {
   const [proxyOn, setProxyOn] = useState(false);
   const [presetUser, setPresetUser] = useState("");
   const [buildTag, setBuildTag] = useState("");
-  const presetRef = useRef({ url: "", user: "", password: "" });
+  const presetRef = useRef({ url: "", user: "", password: "", electrum: "" });
   const [authLocked, setAuthLocked] = useState(false);
   const [canLock, setCanLock] = useState(false);
+  const [electrumPreset, setElectrumPreset] = useState("");
+  const [electrumSource, setElectrumSource] = useState("");
   const passRef = useRef<HTMLInputElement>(null);
 
   const compiled = compileDescriptorCached(root, keys, reuseKeys);
@@ -123,7 +125,7 @@ function NodeDialogBody() {
       setUseHostProxy(true);
       setPresetUser(info.user);
       setBuildTag(info.build);
-      presetRef.current = { url: info.url, user: info.user, password: info.password };
+      presetRef.current = { ...presetRef.current, url: info.url, user: info.user, password: info.password };
       const st = useBitcoind.getState();
       st.patch({
         ...(info.url ? { url: info.url } : {}),
@@ -132,6 +134,13 @@ function NodeDialogBody() {
         kind: "startos",
       });
       if (st.status === "idle") void st.connectLive(useStudio.getState().network);
+    });
+    void hostElectrumInfo().then((info) => {
+      if (!info) return;
+      setElectrumPreset(info.url);
+      setElectrumSource(info.source);
+      presetRef.current = { ...presetRef.current, electrum: info.url };
+      useBitcoind.getState().patch({ electrum: info.url });
     });
   }, []);
 
@@ -193,6 +202,7 @@ function NodeDialogBody() {
                   url: p.url,
                   username: p.user,
                   password: p.password,
+                  electrum: p.electrum || electrumPreset,
                   kind: "startos",
                 });
                 setAuthLocked(true);
@@ -220,10 +230,12 @@ function NodeDialogBody() {
           const nextUrl = String(fd.get("url") ?? "").trim();
           const nextUser = String(fd.get("username") ?? "").trim();
           const nextPass = String(fd.get("password") ?? passRef.current?.value ?? "").trim();
+          const nextElectrum = String(fd.get("electrum") ?? "").trim();
           patch({
             url: nextUrl,
             username: nextUser,
             password: nextPass,
+            electrum: nextElectrum,
             kind: looksLikeStartos(nextUrl) ? "startos" : kind,
           });
           setUseHostProxy(false);
@@ -292,11 +304,16 @@ function NodeDialogBody() {
             id="node-electrum"
             name="electrum"
             value={electrum}
+            disabled={authLocked && Boolean(electrumPreset)}
             onChange={(e) => patch({ electrum: e.target.value })}
             placeholder="host.local:50001"
             className="mt-1.5 font-mono text-xs"
           />
-          <p className="mt-1 text-2xs text-pretty text-fg-muted">{t("node.electrumHint")}</p>
+          <p className="mt-1 text-2xs text-pretty text-fg-muted">
+            {electrumPreset
+              ? t("node.electrumStartos", { name: electrumSource === "electrs" ? "Electrs" : "Fulcrum" })
+              : t("node.electrumHint")}
+          </p>
         </div>
         {ipWarn ? <p className="text-2xs text-pretty text-warn">{t("node.startos.ipWarn")}</p> : null}
 

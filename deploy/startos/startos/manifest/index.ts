@@ -32,5 +32,23 @@ export const manifest = setupManifest({
         icon: 'icon.svg',
       },
     },
+    fulcrum: {
+      description:
+        'Preferred Electrum server on this device for UTXO lookup. Scriptwerk uses the internal plaintext bridge, not the LAN SSL address.',
+      optional: true,
+      metadata: {
+        title: 'Fulcrum',
+        icon: 'icon.svg',
+      },
+    },
+    electrs: {
+      description:
+        'Electrum server on this device if Fulcrum is not installed. Used for UTXO lookup over the internal bridge.',
+      optional: true,
+      metadata: {
+        title: 'Electrs',
+        icon: 'icon.svg',
+      },
+    },
   },
 })

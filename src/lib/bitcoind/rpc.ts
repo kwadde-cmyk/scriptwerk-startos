@@ -259,6 +259,34 @@ export async function hostProxyInfo(): Promise<{
   }
 }
 
+export async function hostElectrumInfo(): Promise<{
+  configured: boolean;
+  url: string;
+  locked: boolean;
+  source: string;
+} | null> {
+  if (typeof fetch === "undefined") return null;
+  try {
+    const res = await fetch("/electrum/info", { method: "GET", cache: "no-store" });
+    if (!res.ok) return null;
+    const body = (await res.json()) as {
+      configured?: boolean;
+      url?: string;
+      locked?: boolean;
+      source?: string;
+    };
+    if (!body?.configured || !body.url) return null;
+    return {
+      configured: true,
+      url: body.url,
+      locked: Boolean(body.locked),
+      source: body.source ?? "",
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function rpcViaHost(method: string, params: unknown[], config: BitcoindConfig): Promise<unknown> {
   const info = await hostProxyInfo();
   const auth = splitCookie(config.username, config.password);

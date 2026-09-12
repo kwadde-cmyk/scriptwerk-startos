@@ -56,5 +56,15 @@ export const setDependencies = sdk.setupDependencies(async ({ effects }) => {
       versionRange: '>=26.0.0',
       healthChecks: ['bitcoind'],
     },
+    fulcrum: {
+      kind: 'running',
+      versionRange: '>=0.1.0',
+      healthChecks: [],
+    },
+    electrs: {
+      kind: 'running',
+      versionRange: '>=0.1.0',
+      healthChecks: [],
+    },
   }
 })
