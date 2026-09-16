@@ -134,7 +134,7 @@ Community Registry: send the public repo to [submissions@start9.com](mailto:subm
 
 ## License / notice
 
-A tool to design and check policies. Not a wallet, not a mainnet signer without your own review. Verify descriptor and checksum on Bitcoin Core and on the device before coins sit on it.
+MIT — see [LICENSE](LICENSE). A tool to design and check policies. Not a wallet, not a mainnet signer without your own review. Verify descriptor and checksum on Bitcoin Core and on the device before coins sit on it.
 
 @teh_jenz on X
 
@@ -277,6 +277,6 @@ Community-Registry: öffentliches Repo an [submissions@start9.com](mailto:submis
 
 ## Lizenz / Hinweis
 
-Werkzeug zum Entwerfen und Prüfen von Policies. Keine Wallet, kein Signer fürs Hauptnetz ohne eigene Prüfung. Descriptor und Checksumme an Bitcoin Core und am Gerät verifizieren, bevor Coins darauf liegen.
+MIT — siehe [LICENSE](LICENSE). Werkzeug zum Entwerfen und Prüfen von Policies. Keine Wallet, kein Signer fürs Hauptnetz ohne eigene Prüfung. Descriptor und Checksumme an Bitcoin Core und am Gerät verifizieren, bevor Coins darauf liegen.
 
 @teh_jenz on X
