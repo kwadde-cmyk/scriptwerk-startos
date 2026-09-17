@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
-import { compileBsms, compileDescriptorCached } from "@/lib/miniscript/compile";
+import { compileBsms } from "@/lib/miniscript/compile";
+import { compiledForStudio, policyIsFrozen } from "@/lib/miniscript/policy-mode";
 import { formatExportWithKeys, formatKeyList } from "@/lib/miniscript/keys";
 import {
   compileBip388,
@@ -52,16 +53,17 @@ export function ImportExportBar() {
   const walletName = useStudio((s) => s.policyName);
   const setWalletName = useStudio((s) => s.setPolicyName);
 
-  const compiled = useMemo(
-    () => compileDescriptorCached(root, keys, reuseKeys),
-    [root, keys, reuseKeys],
-  );
+  const compiled = useStudio(compiledForStudio);
+  const policyMode = useStudio((s) => s.policyMode);
+  const originalDescriptor = useStudio((s) => s.originalDescriptor);
+  const liftWarning = useStudio((s) => s.liftWarning);
+  const frozen = policyIsFrozen(policyMode);
   const miniscript = compiled?.miniscript ?? "";
   const descriptor = compiled?.ok ? compiled.descriptor : "";
   const bsms = useMemo(() => (descriptor ? compileBsms(descriptor) : ""), [descriptor]);
   const bip = useMemo(
-    () => (exportOpen && root ? compileBip388(root, keys, walletName, reuseKeys) : null),
-    [exportOpen, root, keys, walletName, reuseKeys],
+    () => (!frozen && exportOpen && root ? compileBip388(root, keys, walletName, reuseKeys) : null),
+    [frozen, exportOpen, root, keys, walletName, reuseKeys],
   );
 
   function download(filename: string, body: string) {
@@ -92,13 +94,16 @@ export function ImportExportBar() {
         keys,
         reuseKeys,
         network,
+        policyMode,
+        originalDescriptor,
+        liftWarning,
       }),
     );
-    if (bip?.ok) {
+    if (bip?.ok && !frozen) {
       download("scriptwerk-ledger.json", formatLedgerJson(bip.policy));
       download("scriptwerk-bitbox.json", formatBitboxJson(bip.policy));
     }
-    toast.success(bip?.ok ? t("export.okDevices") : t("export.ok"));
+    toast.success(bip?.ok && !frozen ? t("export.okDevices") : t("export.ok"));
   }
 
   const onQrRead = useCallback(
@@ -207,12 +212,16 @@ export function ImportExportBar() {
                 <TabsTrigger value="miniscript" className="px-2.5 text-xs">
                   Miniscript
                 </TabsTrigger>
+                {!frozen ? (
+                  <>
                 <TabsTrigger value="ledger" className="px-2.5 text-xs">
                   {t("export.ledger")}
                 </TabsTrigger>
                 <TabsTrigger value="bitbox" className="px-2.5 text-xs">
                   {t("export.bitbox")}
                 </TabsTrigger>
+                  </>
+                ) : null}
                 <TabsTrigger value="bsms" className="px-2.5 text-xs">
                   BSMS
                 </TabsTrigger>

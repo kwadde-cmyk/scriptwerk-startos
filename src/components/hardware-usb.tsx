@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { compileBip388 } from "@/lib/miniscript/bip388";
-import { compileDescriptorCached } from "@/lib/miniscript/compile";
+import { compiledForStudio, policyIsFrozen } from "@/lib/miniscript/policy-mode";
 import {
   allRequestedMatch,
   chainMatches,
@@ -78,6 +78,7 @@ function HardwareDialogBody() {
   const keys = useStudio((s) => s.keys);
   const root = useStudio((s) => s.root);
   const reuseKeys = useStudio((s) => s.reuseKeys);
+  const frozen = useStudio((s) => policyIsFrozen(s.policyMode));
   const dialogOpen = useHardware((s) => s.open);
   const session = useHardware((s) => s.session);
   const [path, setPath] = useState(defaultAccountPath());
@@ -86,8 +87,8 @@ function HardwareDialogBody() {
 
   const pending = keys.find((k) => k.id === pendingKeyId) ?? null;
   const bip = useMemo(
-    () => (dialogOpen && root ? compileBip388(root, keys, walletName, reuseKeys) : null),
-    [dialogOpen, root, keys, reuseKeys, walletName],
+    () => (!frozen && dialogOpen && root ? compileBip388(root, keys, walletName, reuseKeys) : null),
+    [frozen, dialogOpen, root, keys, reuseKeys, walletName],
   );
   const ready = Boolean(session);
   const errText = error ? localizeMessage(locale, error) : null;
@@ -220,9 +221,13 @@ function HardwareDialogBody() {
             <Button
               size="sm"
               variant="outline"
-              disabled={Boolean(busyAction) || !bip?.ok}
+              disabled={Boolean(busyAction) || frozen || !bip?.ok}
               onClick={() =>
                 run(async () => {
+                  if (frozen) {
+                    toast.error(t("hw.frozen"));
+                    return;
+                  }
                   if (!bip?.ok) {
                     toast.error(bip?.error ?? t("export.none"));
                     return;
@@ -247,12 +252,17 @@ function HardwareDialogBody() {
           ) : kind === "bitbox" ? (
             <p className="text-2xs text-fg-subtle">{t("hw.bitboxStored")}</p>
           ) : null}
+          {frozen ? (
+            <p className="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-2xs text-pretty text-warn">
+              {t("hw.frozen")}
+            </p>
+          ) : null}
           {kind === "ledger" ? (
             <p className="rounded-lg border border-warn/40 bg-warn/10 px-3 py-2 text-2xs text-pretty text-warn">
               {t("hw.verifyNotice")}
             </p>
           ) : null}
-          {bip?.ok ? (
+          {bip?.ok && !frozen ? (
             <AddressCheckPanel
               policyOk={bip.ok}
               walletName={walletName}
@@ -298,10 +308,7 @@ function AddressCheckPanel({
     () => (root ? compileBip388(root, keys, walletName, reuseKeys) : null),
     [root, keys, walletName, reuseKeys],
   );
-  const compiled = useMemo(
-    () => (root ? compileDescriptorCached(root, keys, reuseKeys) : null),
-    [root, keys, reuseKeys],
-  );
+  const compiled = useStudio(compiledForStudio);
 
   async function run() {
     if (!bip?.ok || !compiled?.ok) {

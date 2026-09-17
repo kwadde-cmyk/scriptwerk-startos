@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { compileDescriptorCached } from "@/lib/miniscript/compile";
+import { compiledForStudio } from "@/lib/miniscript/policy-mode";
 import { checksumOf } from "@/lib/miniscript/checksum";
 import { bookmarkletHref, bridgeScript, openNodeTab, originOf, watchBridge } from "@/lib/bitcoind/bridge";
 import { useBitcoind } from "@/store/bitcoind";
@@ -64,7 +64,7 @@ function useKeepBridge() {
         const st = useBitcoind.getState();
         if (st.status !== "ready") return;
         const s = useStudio.getState();
-        const compiled = compileDescriptorCached(s.root, s.keys, s.reuseKeys);
+        const compiled = compiledForStudio(s);
         if (compiled?.ok && compiled.descriptor.includes("xpub")) {
           await st.validate(compiled.descriptor, s.network);
         }
@@ -93,9 +93,6 @@ function NodeDialogBody() {
   const disconnect = useBitcoind((s) => s.disconnect);
   const validate = useBitcoind((s) => s.validate);
   const bridge = useBitcoind((s) => s.bridge);
-  const root = useStudio((s) => s.root);
-  const keys = useStudio((s) => s.keys);
-  const reuseKeys = useStudio((s) => s.reuseKeys);
   const network = useStudio((s) => s.network);
   const [busy, setBusy] = useState(false);
   const [proxyOn, setProxyOn] = useState(false);
@@ -108,7 +105,7 @@ function NodeDialogBody() {
   const [electrumSource, setElectrumSource] = useState("");
   const passRef = useRef<HTMLInputElement>(null);
 
-  const compiled = compileDescriptorCached(root, keys, reuseKeys);
+  const compiled = useStudio(compiledForStudio);
   const ready = status === "ready";
   const errText = error ? localizeMessage(locale, error) : null;
   const port = defaultRpcPort(network);
@@ -395,10 +392,7 @@ export function NodeCheckCard() {
   const setOpen = useBitcoind((s) => s.setOpen);
   const demo = useBitcoind((s) => s.demo);
   const network = useStudio((s) => s.network);
-  const root = useStudio((s) => s.root);
-  const keys = useStudio((s) => s.keys);
-  const reuseKeys = useStudio((s) => s.reuseKeys);
-  const compiled = compileDescriptorCached(root, keys, reuseKeys);
+  const compiled = useStudio(compiledForStudio);
   const ready = status === "ready";
 
   function runCheck() {
@@ -660,10 +654,7 @@ export function NodeAutoSync() {
   const demo = useBitcoind((s) => s.demo);
   const checking = useBitcoind((s) => s.checking);
   const scanningWatch = useBitcoind((s) => s.scanningWatch);
-  const root = useStudio((s) => s.root);
-  const keys = useStudio((s) => s.keys);
-  const reuseKeys = useStudio((s) => s.reuseKeys);
-  const compiled = compileDescriptorCached(root, keys, reuseKeys);
+  const compiled = useStudio(compiledForStudio);
   const cs = compiled?.ok ? checksumOf(compiled.descriptor) : "";
   const desc = compiled?.ok ? compiled.descriptor : "";
   const last = useRef("");

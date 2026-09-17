@@ -10,6 +10,7 @@ import { StageBuilder, ExpertPolicySettings } from "@/components/stage-builder";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { defaultStages } from "@/lib/miniscript/stages";
+import { policyIsFrozen } from "@/lib/miniscript/policy-mode";
 import { useStudio } from "@/store/studio";
 import { useT } from "@/lib/use-t";
 import { RecoveryPrintRoot } from "@/components/recovery-sheet";
@@ -33,6 +34,10 @@ export function StudioShell() {
   useEffect(() => {
     void Promise.resolve(useStudio.persist.rehydrate()).then(() => {
       const s = useStudio.getState();
+      if (policyIsFrozen(s.policyMode) && s.originalDescriptor) {
+        useStudio.setState({ past: [], future: [] });
+        return;
+      }
       if (s.root) {
         useStudio.setState({ past: [], future: [] });
         return;

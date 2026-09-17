@@ -211,9 +211,11 @@ export function QrScanner({ onRead, compact }: { onRead: (text: string) => void;
 export function FilePick({
   onRead,
   label,
+  accept,
 }: {
   onRead: (text: string) => void;
   label?: string;
+  accept?: string;
 }) {
   const { t } = useT();
   const ref = useRef<HTMLInputElement>(null);
@@ -223,7 +225,7 @@ export function FilePick({
       <input
         ref={ref}
         type="file"
-        accept=".txt,.json,.bsms,.desc,.miniscript,text/plain,application/json"
+        accept={accept ?? ".txt,.json,.jsonl,.bsms,.desc,.miniscript,text/plain,application/json"}
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0];

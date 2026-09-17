@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.25:0',
+  version: '0.1.26:0',
   releaseNotes: {
     en_US:
-      'Dark unit icons. Always eight BTC decimals with locale separators. Auto below 0.1 BTC as sats. Address coins follow the unit; the bottom coin list stays BTC.',
+      'Frozen import keeps descriptors that do not map onto stages as watch-only (Taproot still rejected). Wallet tab lists Electrum coins with age and spendability, plus BIP-329 labels.',
     de_DE:
-      'Dunkle Einheiten-Icons. BTC immer acht Nachkommastellen mit lokalen Trennzeichen. Auto unter 0,1 BTC als Sats. Adress-Coins folgen der Einheit; die Coins-Liste unten bleibt BTC.',
+      'Eingefrorener Import: Descriptoren, die nicht auf Stufen passen, bleiben Watch-only (Taproot weiterhin abgelehnt). Wallet-Tab: Electrum-Coins mit Alter und Spendbarkeit, plus BIP-329-Labels.',
     es_ES:
-      'Iconos oscuros. BTC con ocho decimales y separadores locales. Auto bajo 0,1 BTC en sats. Coins de dirección siguen la unidad; la lista inferior sigue en BTC.',
+      'Importación congelada: descriptores que no coinciden con las etapas quedan solo-lectura (Taproot sigue rechazado). Pestaña Wallet: UTXOs de Electrum con antigüedad y gastabilidad, más etiquetas BIP-329.',
     pl_PL:
-      'Ciemne ikony. BTC zawsze osiem miejsc, lokalne separatory. Auto poniżej 0,1 BTC jako sats. Coiny przy adresie wg jednostki; lista na dole zawsze BTC.',
+      'Zamrożony import: deskryptory poza stopniami zostają watch-only (Taproot nadal odrzucany). Zakładka Wallet: UTXO z Electrum z wiekiem i możliwością wydania oraz etykiety BIP-329.',
     fr_FR:
-      'Icônes sombres. BTC à huit décimales, séparateurs locaux. Auto sous 0,1 BTC en sats. Coins d’adresse suivent l’unité ; la liste du bas reste en BTC.',
+      'Import figé : les descripteurs hors étapes restent en lecture seule (Taproot toujours refusé). Onglet Wallet : UTXO Electrum avec âge et dépensabilité, plus étiquettes BIP-329.',
   },
   migrations: {
     up: async () => {},

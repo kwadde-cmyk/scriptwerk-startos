@@ -69,12 +69,21 @@ export default async function bitcoindProxyMiddleware(
   if (event.url.pathname === "/bitcoind-rpc/info") {
     const info = bitcoindInfo();
     return new Response(JSON.stringify(info ?? { configured: false }), {
-      status: info ? 200 : 404,
+      status: 200,
       headers: { "content-type": "application/json", "cache-control": "no-store" },
     });
   }
   if (event.url.pathname !== "/bitcoind-rpc") return next();
-  if (!bitcoindUpstream()) return next();
+  if (!bitcoindUpstream()) {
+    const method = (event.req.method ?? "GET").toUpperCase();
+    if (method === "GET" || method === "HEAD") {
+      return new Response(JSON.stringify({ configured: false }), {
+        status: 200,
+        headers: { "content-type": "application/json", "cache-control": "no-store" },
+      });
+    }
+    return next();
+  }
 
   const method = (event.req.method ?? "GET").toUpperCase();
   if (method === "GET" || method === "HEAD") {

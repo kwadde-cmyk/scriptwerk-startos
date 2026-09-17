@@ -69,7 +69,7 @@ export function attachBitcoindProxy(middlewares) {
     const path = String(req.url ?? "").split("?")[0];
     if (path === "/bitcoind-rpc/info") {
       const info = bitcoindInfo();
-      res.statusCode = info ? 200 : 404;
+      res.statusCode = 200;
       res.setHeader("content-type", "application/json");
       res.setHeader("cache-control", "no-store");
       res.end(JSON.stringify(info ?? { configured: false }));
@@ -81,6 +81,13 @@ export function attachBitcoindProxy(middlewares) {
     }
     const method = String(req.method ?? "GET").toUpperCase();
     if (!bitcoindUpstream()) {
+      if (method === "GET" || method === "HEAD") {
+        res.statusCode = 200;
+        res.setHeader("content-type", "application/json");
+        res.setHeader("cache-control", "no-store");
+        res.end(JSON.stringify({ configured: false }));
+        return;
+      }
       next();
       return;
     }
