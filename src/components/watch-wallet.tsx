@@ -385,16 +385,6 @@ function CoinRow({
         : status.state === "unconfirmed"
           ? t("wallet.unconf")
           : t("wallet.spendUnknown");
-  const recovery = status.paths.find((p) => p.delay > 0 || p.kind === "after");
-  const recoveryNote =
-    status.state === "now" && recovery
-      ? recovery.open
-        ? t("wallet.recoveryOpen")
-        : t("wallet.recoveryIn", {
-            n: recovery.blocksLeft.toLocaleString(nloc),
-            approx: blocksApprox(recovery.blocksLeft, locale),
-          })
-      : null;
   const addr = hit.address || "";
   const addrLabel = addr ? labelText(labels, "addr", addr) : "";
   const Icon = status.spendable ? Unlock : status.state === "later" ? Lock : Clock;
@@ -417,6 +407,37 @@ function CoinRow({
               {spendLabel}
             </Badge>
           </div>
+          {status.paths.length ? (
+            <div className="flex flex-wrap gap-1">
+              {status.paths.map((p) => (
+                <span
+                  key={p.index}
+                  title={
+                    p.open
+                      ? t("wallet.opensAt", { n: p.opensAt.toLocaleString(nloc) })
+                      : p.kind === "after"
+                        ? t("wallet.opensAt", { n: p.opensAt.toLocaleString(nloc) })
+                        : t("wallet.spendLater", {
+                            n: p.blocksLeft.toLocaleString(nloc),
+                            approx: blocksApprox(p.blocksLeft, locale),
+                          })
+                  }
+                  className={cn(
+                    "inline-flex min-h-7 items-center gap-1 rounded-full px-2 text-2xs",
+                    p.open ? "bg-ok/15 text-ok" : "bg-danger/15 text-danger",
+                  )}
+                >
+                  {p.open ? <Unlock className="size-3" /> : <Lock className="size-3" />}
+                  {t("wallet.stageChip", { n: p.index })}
+                  {p.open
+                    ? null
+                    : p.blocksLeft > 0
+                      ? ` · ${t("wallet.stageLeft", { n: p.blocksLeft.toLocaleString(nloc) })}`
+                      : null}
+                </span>
+              ))}
+            </div>
+          ) : null}
           <p className="text-2xs text-fg-muted">
             {status.state === "unconfirmed"
               ? t("wallet.unconf")
@@ -425,10 +446,6 @@ function CoinRow({
                   approx: blocksApprox(status.confirmations, locale),
                 })}
             {kind ? ` · ${t(`wallet.${kind}`)}${index != null ? ` ${index}` : ""}` : ""}
-            {status.state === "later" && next
-              ? ` · ${t("wallet.stageOpen", { n: next.index, quorum: next.quorum })}`
-              : ""}
-            {recoveryNote ? ` · ${recoveryNote}` : ""}
           </p>
           {addr ? (
             <p className="font-mono text-2xs break-all text-fg">

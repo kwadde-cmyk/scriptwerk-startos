@@ -1,8 +1,8 @@
 import { memo, useMemo } from "react";
 import { layoutTree } from "@/lib/miniscript/layout";
 import { visit, type MsNode } from "@/lib/miniscript/ast";
-import { blocksWhen, tokenNeedsAction, type KeyEntry } from "@/lib/miniscript/keys";
-import { stageHighlightIds } from "@/lib/miniscript/stages";
+import { lockWhen, tokenNeedsAction, type KeyEntry } from "@/lib/miniscript/keys";
+import { stageHighlightIds, stageLockOf } from "@/lib/miniscript/stages";
 import { useStudio } from "@/store/studio";
 import { ZoomPane } from "@/components/zoom-pane";
 import { GitBranch } from "lucide-react";
@@ -62,7 +62,7 @@ export const PolicyGraph = memo(function PolicyGraph() {
         {activeStage ? (
           <div className="shrink-0 rounded-full bg-primary px-3 py-1 font-mono text-2xs text-primary-foreground">
             {t("graph.stagePath", { n: stageIndex + 1 })}
-            <span className="ml-2 opacity-80">{blocksWhen(activeStage.delay, locale)}</span>
+            <span className="ml-2 opacity-80">{lockWhen(stageLockOf(activeStage), activeStage.delay, locale)}</span>
           </div>
         ) : null}
       </div>

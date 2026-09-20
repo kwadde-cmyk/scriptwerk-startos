@@ -100,7 +100,7 @@ function easyStages(stages: Stage[]): Stage[] {
     hash: false,
     andv: false,
     sorted: false,
-    delay: Math.min(s.delay, 65534),
+    delay: s.lock === "after" ? s.delay : Math.min(s.delay, 65534),
   }));
 }
 
@@ -418,7 +418,9 @@ export const useStudio = create<StudioState>()(
         const cur = get();
         if (policyIsFrozen(cur.policyMode)) return;
         const { stages, keys, network, reuseKeys, nesting } = cur;
-        const next = stages.map((s) => ({ ...s, delay: Math.min(s.delay, maxOlder) }));
+        const next = stages.map((s) =>
+          s.lock === "after" ? s : { ...s, delay: Math.min(s.delay, maxOlder) },
+        );
         if (stages.length) {
           mutate({ maxOlder, ...applyStageTree(next, keys, network, reuseKeys, nesting) });
           return;

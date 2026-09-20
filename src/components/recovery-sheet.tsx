@@ -6,6 +6,7 @@ import {
   keyOriginExpr,
   keyRoleLabel,
   childRoleLabel,
+  lockWhen,
   parseAccountIndex,
   shortXpub,
   type KeyChild,
@@ -173,10 +174,7 @@ function RecoveryDocument({ print = false }: { print?: boolean }) {
           {slots.map((s) => {
             const stage = stages[s.index - 1];
             const must = (stage?.required ?? []).map((tok) => displayKeyToken(tok, keys)).join(", ");
-            const delay =
-              s.delay <= 0
-                ? t("recovery.now")
-                : `${s.delay} ${t("recovery.blocks")}${s.delay >= 144 ? ` ≈ ${Math.round(s.delay / 144)} ${t("recovery.days")}` : ""}`;
+            const delay = lockWhen(s.lock, s.delay, locale);
             return (
               <li key={s.index}>
                 <span className="font-medium">{s.quorum}</span>
