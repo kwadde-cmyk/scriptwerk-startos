@@ -24,6 +24,7 @@ import { useT } from "@/lib/use-t";
 import { localizeMessage, numberLocale } from "@/lib/i18n";
 import { toast } from "sonner";
 import { Clock, Download, Lock, Tag, Unlock } from "lucide-react";
+import { PolicyNameHeading, usePolicyTitle } from "@/components/policy-title";
 import { cn } from "@/lib/utils";
 
 type CoinFilter = "all" | "now" | "later" | "unconfirmed";
@@ -32,7 +33,7 @@ export function WatchWalletPanel() {
   const { t, locale } = useT();
   const nloc = numberLocale(locale);
   const unit = useStudio((s) => s.amountUnit);
-  const policyName = useStudio((s) => s.policyName);
+  const { name: titleName } = usePolicyTitle();
   const compiled = useStudio(compiledForStudio);
   const stages = useStudio((s) => s.stages);
   const reuseKeys = useStudio((s) => s.reuseKeys);
@@ -55,7 +56,7 @@ export function WatchWalletPanel() {
 
   const descriptor = compiled?.ok ? compiled.descriptor : "";
   const checksum = descriptor ? checksumOf(descriptor) : "";
-  const snap = lastWatch;
+  const snap = lastWatch && checksum && lastWatch.checksum === checksum ? lastWatch : null;
 
   const coins = useMemo(() => {
     const tip = snap?.height ?? 0;
@@ -153,7 +154,7 @@ export function WatchWalletPanel() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${(policyName || "scriptwerk").replace(/\s+/g, "-").toLowerCase()}-labels.jsonl`;
+    a.download = `${titleName.replace(/\s+/g, "-").toLowerCase()}-labels.jsonl`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success(t("wallet.bip329Exported", { n: records.length }));
@@ -168,7 +169,6 @@ export function WatchWalletPanel() {
     toast.success(t("wallet.bip329Ok", { n: hit.n }));
   }
 
-  const savedName = policyName.trim();
   const labelCount = Object.keys(labels).length;
 
   return (
@@ -179,7 +179,9 @@ export function WatchWalletPanel() {
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="text-2xs font-medium tracking-[0.14em] text-fg-subtle uppercase">{t("wallet.title")}</p>
-            {savedName ? <p className="mt-1 font-display text-lg tracking-tight text-fg">{savedName}</p> : null}
+            <p className="mt-1 font-display text-lg tracking-tight text-fg">
+              <PolicyNameHeading />
+            </p>
           </div>
           <AmountUnitSwitch />
         </div>

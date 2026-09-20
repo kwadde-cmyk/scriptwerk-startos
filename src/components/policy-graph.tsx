@@ -4,6 +4,7 @@ import { visit, type MsNode } from "@/lib/miniscript/ast";
 import { lockWhen, tokenNeedsAction, type KeyEntry } from "@/lib/miniscript/keys";
 import { stageHighlightIds, stageLockOf } from "@/lib/miniscript/stages";
 import { useStudio } from "@/store/studio";
+import { PolicyNameHeading } from "@/components/policy-title";
 import { ZoomPane } from "@/components/zoom-pane";
 import { GitBranch } from "lucide-react";
 import { useT } from "@/lib/use-t";
@@ -31,7 +32,6 @@ export const PolicyGraph = memo(function PolicyGraph() {
   const reuseKeys = useStudio((s) => s.reuseKeys);
   const selectedId = useStudio((s) => s.selectedId);
   const selectedStageId = useStudio((s) => s.selectedStageId);
-  const policyName = useStudio((s) => s.policyName);
   const select = useStudio((s) => s.select);
   const layout = useMemo(() => layoutTree(root, locale), [root, locale]);
   const attention = useMemo(() => attentionIds(root, keys, reuseKeys), [root, keys, reuseKeys]);
@@ -57,7 +57,7 @@ export const PolicyGraph = memo(function PolicyGraph() {
     <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col">
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-ink px-4 py-2">
         <h2 className="min-w-0 truncate font-display text-lg tracking-tight text-fg">
-          {policyName.trim() || "Scriptwerk"}
+          <PolicyNameHeading />
         </h2>
         {activeStage ? (
           <div className="shrink-0 rounded-full bg-primary px-3 py-1 font-mono text-2xs text-primary-foreground">

@@ -9,7 +9,7 @@ import {
   expandAliasKeys,
 } from "./compile.ts";
 import { explainPolicy } from "./explain.ts";
-import { decodeLibrary, encodeLibrary, peekChecksum, type SavedPolicy } from "../policy-library.ts";
+import { decodeLibrary, encodeLibrary, peekChecksum, policyIsDirty, policySig, type SavedPolicy } from "../policy-library.ts";
 import { electrumHostAllowed, parseElectrumUrl, scriptPubKeyFromAddress, scripthashForAddress } from "../electrum.ts";
 import {
   applyKeyMaterial,
@@ -1421,6 +1421,28 @@ describe("policy library", () => {
     assert.deepEqual(decodeLibrary("[]"), []);
     assert.deepEqual(decodeLibrary("{"), []);
     assert.deepEqual(decodeLibrary('[{"name":"x"}]'), []);
+  });
+
+  it("policySig ignores ids and detects edits", () => {
+    const base = {
+      policyName: "Erbe",
+      keys: [],
+      stages: [{ id: "st_1", delay: 0, k: 2, keys: ["A", "B", "C"] }],
+      reuseKeys: false,
+      nesting: "late" as const,
+      maxOlder: 65534 as const,
+      policyMode: "stages" as const,
+      originalDescriptor: "",
+    };
+    const twin = { ...base, stages: [{ id: "st_other", delay: 0, k: 2, keys: ["A", "B", "C"] }] };
+    assert.equal(policySig(base), policySig(twin));
+    assert.notEqual(policySig(base), policySig({ ...base, policyName: "Haus" }));
+    assert.equal(policyIsDirty({ ...base, savedId: null, cleanSig: policySig(base) }), true);
+    assert.equal(policyIsDirty({ ...base, savedId: "pol_1", cleanSig: policySig(base) }), false);
+    assert.equal(
+      policyIsDirty({ ...base, stages: [{ ...base.stages[0]!, delay: 144 }], savedId: "pol_1", cleanSig: policySig(base) }),
+      true,
+    );
   });
 });
 
