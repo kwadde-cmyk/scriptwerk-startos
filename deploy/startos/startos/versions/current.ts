@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.28:0',
+  version: '0.1.29:0',
   releaseNotes: {
     en_US:
-      'Wallet no longer shows another policy’s balance after addresses change. New designs are titled New / unsaved; a saved policy you edit shows modified until you save.',
+      'Imported BIP-329 labels can be edited. Wallet coins sort by age, size, address index or tag (filters removed). Derive a receive or change address by index on the Check tab. Every Bitcoin address has copy plus a QR popup.',
     de_DE:
-      'Die Wallet zeigt nach Adresswechsel nicht mehr den Stand einer anderen Policy. Neue Designs heißen Neu / ungespeichert; eine gespeicherte, die du änderst, zeigt geändert bis zum Speichern.',
+      'Importierte BIP-329-Labels lassen sich bearbeiten. Coins in der Wallet sortierst du nach Alter, Größe, Adressindex oder Tag (Filter entfernt). Im Prüfen-Tab eine Empfangs- oder Wechseladresse per Index ableiten. Jede Bitcoin-Adresse hat Kopieren und ein QR-Popup.',
     es_ES:
-      'La cartera no muestra el saldo de otra política al cambiar las direcciones. Los diseños nuevos aparecen como New / unsaved; una guardada que editas muestra modified hasta guardar.',
+      'Las etiquetas BIP-329 importadas se pueden editar. Las monedas se ordenan por edad, tamaño, índice de dirección o etiqueta (sin filtros). Deriva una dirección de recepción o cambio por índice en la pestaña Check. Cada dirección Bitcoin tiene copiar y un popup QR.',
     pl_PL:
-      'Portfel nie pokazuje salda innej polityki po zmianie adresów. Nowe projekty to New / unsaved; zapisana i zmieniona pokazuje modified do zapisu.',
+      'Zaimportowane etykiety BIP-329 można edytować. Monety sortujesz według wieku, rozmiaru, indeksu adresu lub tagu (filtry usunięte). Na karcie Check wyprowadź adres receive/change po indeksie. Każdy adres Bitcoin ma kopiowanie i popup QR.',
     fr_FR:
-      'Le portefeuille n’affiche plus le solde d’une autre politique après un changement d’adresses. Un nouveau design s’intitule New / unsaved ; une politique enregistrée puis modifiée affiche modified jusqu’à l’enregistrement.',
+      'Les libellés BIP-329 importés sont éditables. Les pièces se trient par âge, taille, index d’adresse ou tag (filtres retirés). Onglet Check : dériver une adresse receive/change par index. Chaque adresse Bitcoin a copie et popup QR.',
   },
   migrations: {
     up: async () => {},
