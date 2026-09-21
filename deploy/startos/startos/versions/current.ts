@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.31:0',
+  version: '0.1.32:0',
   releaseNotes: {
     en_US:
-      'Separate Reset Electrum button — RPC reset no longer overwrites the indexer. Docker/web install asks for the Electrum URL (Fulcrum on StartOS) and stores it as the build default.',
+      'Docker/web installs with preconfigured RPC now open the node bridge (certificate + CORS). Only the StartOS package uses the silent server proxy. Reset Electrum is unchanged.',
     de_DE:
-      'Eigener Knopf „Electrum zurücksetzen“ — RPC-Reset lässt den Indexer unberührt. Docker-/Web-Install fragt die Electrum-URL (Fulcrum auf StartOS) und speichert sie als Bau-Wert.',
+      'Docker-/Web-Install mit voreingestelltem RPC lädt die Node-Brücke (Zertifikat und CORS). Nur das StartOS-Paket spricht still über den Server-Proxy. Electrum-Reset unverändert.',
     es_ES:
-      'Botón propio para restablecer Electrum; el reset de RPC no toca el indexador. La instalación Docker/web pregunta la URL de Electrum y la guarda como valor de instalación.',
+      'La instalación Docker/web con RPC preconfigurado abre el puente del nodo. Solo el paquete StartOS usa el proxy silencioso del servidor.',
     pl_PL:
-      'Osobny przycisk resetu Electrum — reset RPC nie nadpisuje indexera. Instalacja Docker/web pyta o URL Electrum i zapisuje go jako wartość z instalacji.',
+      'Instalacja Docker/web z wstępnie ustawionym RPC ładuje mostek węzła. Tylko pakiet StartOS używa cichego proxy serwera.',
     fr_FR:
-      'Bouton Reset Electrum séparé — le reset RPC ne touche plus l’indexeur. L’install Docker/web demande l’URL Electrum et la stocke comme valeur d’installation.',
+      'L’install Docker/web avec RPC préconfiguré charge le pont nœud. Seul le paquet StartOS utilise le proxy serveur silencieux.',
   },
   migrations: {
     up: async () => {},
