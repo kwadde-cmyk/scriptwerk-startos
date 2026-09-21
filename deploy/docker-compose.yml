@@ -16,3 +16,4 @@ services:
       BITCOIND_RPC_USER: "${BITCOIND_RPC_USER:-}"
       BITCOIND_RPC_PASSWORD: "${BITCOIND_RPC_PASSWORD:-}"
       ELECTRUM_URL: "${ELECTRUM_URL:-}"
+      # Fulcrum/Electrs on the LAN (e.g. StartOS): ssl://host:port or host:50001

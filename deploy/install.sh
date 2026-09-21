@@ -6,7 +6,7 @@
 #   ./deploy/install.sh --dry-run            # Port/RPC zeigen, nichts starten
 #   ./deploy/install.sh --simulate raspi     # Beispiel-Homeserver
 #   ./deploy/install.sh                      # installieren (fragt Port, wenn Terminal)
-#   SCRIPTWERK_PORT=8081 BITCOIND_RPC_URL=https://node.local:57521 ./deploy/install.sh
+#   SCRIPTWERK_PORT=8081 BITCOIND_RPC_URL=https://node.local:57521 ELECTRUM_URL=ssl://node.local:50002 ./deploy/install.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -44,6 +44,7 @@ if [[ "$MODE" == "probe" ]]; then
   echo "Gewünschter Port:           SCRIPTWERK_PORT=${SUGGEST} ./deploy/install.sh"
   echo "Node woanders, z. B.:       BITCOIND_RPC_URL=https://node.local:57521 \\"
   echo "                            BITCOIND_RPC_USER=scriptwerk BITCOIND_RPC_PASSWORD='…' \\"
+  echo "                            ELECTRUM_URL=ssl://node.local:50002 \\"
   echo "                            SCRIPTWERK_PORT=${SUGGEST} ./deploy/install.sh"
   exit 0
 fi
@@ -68,6 +69,13 @@ if [[ -t 0 && -z "${BITCOIND_RPC_URL+x}" ]]; then
   fi
 fi
 
+ELECTRUM="${ELECTRUM_URL-}"
+if [[ -t 0 && -z "${ELECTRUM_URL+x}" ]]; then
+  echo "Electrum (Electrs/Fulcrum) für UTXOs, optional — oft Fulcrum auf StartOS."
+  echo "z. B. ssl://capable-dosage.local:50002 oder host.local:50001. Leer = später in der UI."
+  read -r -p "Electrum-URL [leer]: " ELECTRUM || true
+fi
+
 ENV_FILE="$ROOT/deploy/.env"
 
 if [[ "$MODE" == "dry-run" ]]; then
@@ -75,6 +83,7 @@ if [[ "$MODE" == "dry-run" ]]; then
   echo "  SCRIPTWERK_PORT=${PORT}"
   echo "  BITCOIND_RPC_URL=${RPC_URL:-<leer → Node-Brücke in der UI>}"
   echo "  BITCOIND_RPC_USER=${RPC_USER:-<leer>}"
+  echo "  ELECTRUM_URL=${ELECTRUM:-<leer → in der UI>}"
   if need_cmd docker && (docker compose version >/dev/null 2>&1 || need_cmd docker-compose); then
     echo "  Startweg: Docker Compose"
   elif need_cmd node; then
@@ -90,7 +99,7 @@ SCRIPTWERK_PORT=${PORT}
 BITCOIND_RPC_URL=${RPC_URL}
 BITCOIND_RPC_USER=${RPC_USER}
 BITCOIND_RPC_PASSWORD=${RPC_PASS}
-ELECTRUM_URL=${ELECTRUM_URL-}
+ELECTRUM_URL=${ELECTRUM}
 EOF
 
 if need_cmd docker && (docker compose version >/dev/null 2>&1 || need_cmd docker-compose); then
@@ -107,7 +116,7 @@ elif need_cmd node; then
     npm ci
   fi
   npm run build:host
-  PORT="$PORT" HOST=0.0.0.0 BITCOIND_RPC_URL="$RPC_URL" BITCOIND_RPC_USER="$RPC_USER" BITCOIND_RPC_PASSWORD="$RPC_PASS" \
+  PORT="$PORT" HOST=0.0.0.0 BITCOIND_RPC_URL="$RPC_URL" BITCOIND_RPC_USER="$RPC_USER" BITCOIND_RPC_PASSWORD="$RPC_PASS" ELECTRUM_URL="$ELECTRUM" \
     nohup npm start >>/tmp/scriptwerk.log 2>&1 &
   echo $! >/tmp/scriptwerk.pid
   RUNNER="node"
@@ -131,6 +140,11 @@ if [[ -n "$RPC_URL" ]]; then
   echo "  RPC:    ${RPC_URL}  (andere Maschine ist in Ordnung)"
 else
   echo "  RPC:    nicht gesetzt — in der UI die Node-Brücke nutzen, Node darf woanders laufen."
+fi
+if [[ -n "$ELECTRUM" ]]; then
+  echo "  Electrum: ${ELECTRUM}"
+else
+  echo "  Electrum: nicht gesetzt — in der UI eintragen (z. B. Fulcrum auf StartOS)."
 fi
 echo "  Handy:  LAN-Adresse in Chrome → Zum Startbildschirm."
 echo "Nginx-Beispiel falls Port 80 schon ein Webserver ist:  deploy/nginx-scriptwerk.conf"
