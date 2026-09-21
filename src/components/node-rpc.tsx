@@ -28,8 +28,8 @@ import {
   defaultRpcPort,
   deriveAddressRange,
   hostElectrumInfo,
-  hostProxyAvailable,
   hostProxyInfo,
+  hostProxyIsStartosSource,
   isLanIpUrl,
   looksLikeStartos,
   normalizeRpcUrl,
@@ -126,13 +126,13 @@ function NodeDialogBody() {
   const nodeUrl = normalizeRpcUrl(url, network);
 
   useEffect(() => {
-    void hostProxyAvailable().then(setProxyOn);
     void hostProxyInfo().then((info) => {
       if (!info) return;
-      setProxyOn(true);
-      setCanLock(info.locked || Boolean(info.user || info.password));
-      setAuthLocked(info.locked || Boolean(info.user || info.password));
-      setUseHostProxy(true);
+      const startosPkg = hostProxyIsStartosSource(info.source);
+      setProxyOn(startosPkg);
+      setCanLock(startosPkg && (info.locked || Boolean(info.user || info.password)));
+      setAuthLocked(startosPkg && (info.locked || Boolean(info.user || info.password)));
+      setUseHostProxy(startosPkg);
       setPresetUser(info.user);
       setBuildTag(info.build);
       presetRef.current = { ...presetRef.current, url: info.url, user: info.user, password: info.password };
@@ -141,7 +141,7 @@ function NodeDialogBody() {
         ...(info.url ? { url: info.url } : {}),
         ...(info.user ? { username: info.user } : {}),
         ...(info.password ? { password: info.password } : {}),
-        kind: "startos",
+        kind: startosPkg || looksLikeStartos(info.url) ? "startos" : "core",
       });
       if (st.status === "idle") void st.connectLive(useStudio.getState().network);
     });
