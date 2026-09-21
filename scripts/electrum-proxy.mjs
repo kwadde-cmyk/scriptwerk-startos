@@ -317,6 +317,7 @@ export function attachElectrumProxy(middlewares) {
       res.end(out.body);
     } catch (err) {
       res.statusCode = 502;
+      res.setHeader("content-type", "application/json");
       res.end(JSON.stringify({ error: { message: err instanceof Error ? err.message : "electrum failed" } }));
     }
   });
