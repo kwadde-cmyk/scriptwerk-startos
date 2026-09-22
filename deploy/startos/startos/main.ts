@@ -17,7 +17,7 @@ export const main = sdk.setupMain(async ({ effects }) => {
     })
     .once()
 
-  const env: Record<string, string> = { SCRIPTWERK_BUILD: '0.1.32' }
+  const env: Record<string, string> = { SCRIPTWERK_BUILD: '0.1.33' }
   if (rpcAddr && store?.rpcUser && store.rpcPassword) {
     env.BITCOIND_RPC_URL = `http://${rpcAddr}`
     env.BITCOIND_RPC_USER = store.rpcUser
