@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.36:0',
+  version: '0.1.37:0',
   releaseNotes: {
     en_US:
-      'UTXO picker shows, for the chosen spend path, the block height and remaining blocks when a coin is still locked. Select all, no timelock, or none next to Use these.',
+      'BTC, sats, and auto sit in the banner. The version number stays clear of the title and the desktop controls.',
     de_DE:
-      'Die UTXO-Liste zeigt zum gewählten Ausgabepfad Blockhöhe und verbleibende Blöcke, solange ein Coin gesperrt ist. Neben Übernehmen: Alle, Ohne Timelock, Keine.',
+      'BTC, Sats und Auto sitzen im Banner. Die Versionsnummer bleibt frei von Titel und den Desktop-Schaltern.',
     es_ES:
-      'La lista de UTXO muestra, para la ruta elegida, la altura y los bloques restantes si una moneda sigue bloqueada. Junto a usar: todas, sin timelock o ninguna.',
+      'BTC, sats y auto están en el banner. La versión no tapa el título ni los controles de escritorio.',
     pl_PL:
-      'Lista UTXO pokazuje dla wybranej ścieżki wysokość bloku i pozostałe bloki, gdy moneta jest zablokowana. Obok: wszystkie, bez timelocka, żadne.',
+      'BTC, sats i auto są na banerze. Numer wersji nie zasłania tytułu ani przycisków.',
     fr_FR:
-      'La liste UTXO indique, pour le chemin choisi, la hauteur et les blocs restants si une pièce est encore verrouillée. À côté : toutes, sans timelock, aucune.',
+      'BTC, sats et auto sont dans la bannière. Le numéro de version ne couvre ni le titre ni les commandes.',
   },
   migrations: {
     up: async () => {},
