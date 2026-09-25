@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.35:0',
+  version: '0.1.36:0',
   releaseNotes: {
     en_US:
-      'Transaction tab: pick the spend path first, Max beside the amount, fee in sat/vB taken from the amount or from change. Export the PSBT as a file or QR. Import shows which signatures are present and which are still missing. Version in the banner.',
+      'UTXO picker shows, for the chosen spend path, the block height and remaining blocks when a coin is still locked. Select all, no timelock, or none next to Use these.',
     de_DE:
-      'Transaktions-Tab: zuerst den Ausgabepfad, Max neben dem Betrag, Gebühr in sat/vB vom Betrag oder vom Wechselgeld. PSBT als Datei oder QR. Import zeigt vorhandene und fehlende Signaturen. Version im Banner.',
+      'Die UTXO-Liste zeigt zum gewählten Ausgabepfad Blockhöhe und verbleibende Blöcke, solange ein Coin gesperrt ist. Neben Übernehmen: Alle, Ohne Timelock, Keine.',
     es_ES:
-      'Pestaña de transacción: ruta primero, máximo junto al importe, comisión en sat/vB del importe o del cambio. PSBT como archivo o QR. La importación muestra firmas presentes y faltantes. Versión en el banner.',
+      'La lista de UTXO muestra, para la ruta elegida, la altura y los bloques restantes si una moneda sigue bloqueada. Junto a usar: todas, sin timelock o ninguna.',
     pl_PL:
-      'Karta transakcji: najpierw ścieżka, Max przy kwocie, opłata sat/vB z kwoty lub z reszty. PSBT jako plik lub QR. Import pokazuje podpisy. Wersja na banerze.',
+      'Lista UTXO pokazuje dla wybranej ścieżki wysokość bloku i pozostałe bloki, gdy moneta jest zablokowana. Obok: wszystkie, bez timelocka, żadne.',
     fr_FR:
-      'Onglet transaction : chemin d’abord, Max à côté du montant, frais en sat/vB pris sur le montant ou sur la monnaie. PSBT en fichier ou QR. L’import indique les signatures présentes et manquantes. Version dans la bannière.',
+      'La liste UTXO indique, pour le chemin choisi, la hauteur et les blocs restants si une pièce est encore verrouillée. À côté : toutes, sans timelock, aucune.',
   },
   migrations: {
     up: async () => {},

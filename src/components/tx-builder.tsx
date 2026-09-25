@@ -74,8 +74,12 @@ function SendPane({ pathIndex }: { pathIndex: number | null }) {
   const unit = useStudio((s) => s.amountUnit);
   const coins = useBitcoind((s) => s.lastWatch?.unspents) ?? NO_COINS;
   const addresses = useBitcoind((s) => s.lastWatch?.addresses) ?? NO_ADDRS;
+  const watchHeight = useBitcoind((s) => s.lastWatch?.height) ?? 0;
+  const probeBlocks = useBitcoind((s) => (s.probe && s.probe.chain !== "demo" ? s.probe.blocks : 0)) ?? 0;
+  const tip = probeBlocks || watchHeight;
   const stages = useStudio((s) => s.stages);
   const reuse = useStudio((s) => s.reuseKeys);
+  const root = useStudio((s) => s.root);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<string[]>([]);
   const [picked, setPicked] = useState<string[]>([]);
@@ -243,6 +247,8 @@ function SendPane({ pathIndex }: { pathIndex: number | null }) {
               {coins.map((c) => {
                 const id = `${c.txid}:${c.vout}`;
                 const on = draft.includes(id);
+                const lock = coinPath(c, tip, stages, reuse, root, pathIndex);
+                const locked = lock && !lock.open && c.height > 0;
                 return (
                   <li key={id}>
                     <button
@@ -251,11 +257,23 @@ function SendPane({ pathIndex }: { pathIndex: number | null }) {
                       onClick={() => setDraft((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))}
                       className={
                         on
-                          ? "flex min-h-11 w-full items-center justify-between gap-2 rounded-md bg-muted px-3 text-left text-xs"
-                          : "flex min-h-11 w-full items-center justify-between gap-2 rounded-md border border-border px-3 text-left text-xs text-fg-muted"
+                          ? "flex min-h-11 w-full items-center justify-between gap-2 rounded-md bg-muted px-3 py-2 text-left text-xs"
+                          : "flex min-h-11 w-full items-center justify-between gap-2 rounded-md border border-border px-3 py-2 text-left text-xs text-fg-muted"
                       }
                     >
-                      <span className="truncate font-mono">{c.txid.slice(0, 10)}…:{c.vout}</span>
+                      <span className="min-w-0">
+                        <span className="block truncate font-mono">{c.txid.slice(0, 10)}…:{c.vout}</span>
+                        {c.height <= 0 ? (
+                          <span className="block text-2xs text-fg-subtle">{t("tx.unconfirmed")}</span>
+                        ) : locked ? (
+                          <span className="block text-2xs text-fg-subtle">
+                            {t("tx.lockedAt", {
+                              h: lock.opensAt.toLocaleString(nloc),
+                              n: lock.blocksLeft.toLocaleString(nloc),
+                            })}
+                          </span>
+                        ) : null}
+                      </span>
                       <span className="shrink-0 tabular-nums">{formatAmount(c.amount, unit, nloc).label}</span>
                     </button>
                   </li>
@@ -263,7 +281,24 @@ function SendPane({ pathIndex }: { pathIndex: number | null }) {
               })}
             </ul>
           )}
-          <Button type="button" onClick={confirmPick}>{t("tx.useCoins")}</Button>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" onClick={confirmPick}>{t("tx.useCoins")}</Button>
+            <Button type="button" variant="outline" onClick={() => setDraft(coins.map((c) => `${c.txid}:${c.vout}`))}>{t("tx.pickAll")}</Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() =>
+                setDraft(
+                  coins
+                    .filter((c) => c.height > 0 && coinPath(c, tip, stages, reuse, root, pathIndex)?.open)
+                    .map((c) => `${c.txid}:${c.vout}`),
+                )
+              }
+            >
+              {t("tx.pickOpen")}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => setDraft([])}>{t("tx.pickNone")}</Button>
+          </div>
         </DialogContent>
       </Dialog>
     </section>
@@ -526,6 +561,19 @@ function avoidSet(coins: UtxoHit[], rows: PayRow[]): Set<string> {
   for (const c of coins) if (c.address) avoid.add(c.address);
   for (const r of rows) if (r.address.trim()) avoid.add(r.address.trim());
   return avoid;
+}
+
+function coinPath(
+  coin: UtxoHit,
+  tip: number,
+  stages: Stage[],
+  reuse: boolean,
+  root: ReturnType<typeof useStudio.getState>["root"],
+  pathIndex: number | null,
+) {
+  if (pathIndex == null) return null;
+  const status = evaluateCoinStatus({ height: coin.height, tip, stages, reuse, root });
+  return status.paths[pathIndex] ?? null;
 }
 
 function spendSize(stages: Stage[], reuse: boolean, index = 0): { sigs: number; keys: number } {
