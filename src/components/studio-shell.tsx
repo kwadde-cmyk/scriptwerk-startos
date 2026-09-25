@@ -13,6 +13,7 @@ import { defaultStages } from "@/lib/miniscript/stages";
 import { policyIsFrozen } from "@/lib/miniscript/policy-mode";
 import { useStudio } from "@/store/studio";
 import { useT } from "@/lib/use-t";
+import { SCRIPTWERK_VERSION } from "@/lib/version";
 import { RecoveryPrintRoot } from "@/components/recovery-sheet";
 import { NodeAutoSync } from "@/components/node-rpc";
 import { Toaster } from "sonner";
@@ -88,6 +89,7 @@ export function StudioShell() {
               />
             </div>
             <div className="absolute top-1.5 right-3 z-10 text-right sm:top-2 lg:top-2 lg:right-4">
+              <p className="font-mono text-2xs text-fg-subtle">{SCRIPTWERK_VERSION}</p>
               <p className="font-display text-[1.2rem] font-semibold tracking-[0.2em] text-fg sm:text-2xl lg:text-[1.95rem] lg:tracking-[0.24em]">
                 SCRIPTWERK
               </p>

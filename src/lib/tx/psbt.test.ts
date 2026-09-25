@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { btcToSats, buildPsbt, estimateVbytes, extractSignedTx, feeFromRate, planSpend } from "./psbt.ts";
+import { btcToSats, buildPsbt, estimateVbytes, extractSignedTx, feeFromRate, inspectSignatures, planSpend, satsToDecimal } from "./psbt.ts";
 
 const ADDR = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
 const TXID = "11".repeat(32);
@@ -58,6 +58,17 @@ describe("unsigned psbt", () => {
     assert.ok(vb > 100 && vb < 400);
     assert.equal(feeFromRate(2, vb), vb * 2);
     assert.equal(feeFromRate(0, vb), 0);
+    assert.equal(satsToDecimal(100_000_001), "1.00000001");
+    const report = inspectSignatures(buildPsbt(planSpend({
+      coins: [{ txid: TXID, vout: 0, amountBtc: 0.002, address: ADDR }],
+      payTo: ADDR,
+      paySats: 0,
+      feeSats: 2_000,
+      sendAll: true,
+    })));
+    assert.equal(report.inputs.length, 1);
+    assert.equal(report.inputs[0]!.pubkeys.length, 0);
+    assert.equal(report.inputs[0]!.finalized, false);
   });
 
   it("keeps a raw signed hex and refuses an unsigned psbt", () => {

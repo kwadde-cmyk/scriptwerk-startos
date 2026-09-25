@@ -26,6 +26,13 @@ export function satsFromDecimal(text: string): number {
   return Number(whole) * 100_000_000 + Number(frac.padEnd(8, "0").slice(0, 8));
 }
 
+export function satsToDecimal(sats: number): string {
+  const n = Math.max(0, Math.floor(sats));
+  const whole = Math.floor(n / 100_000_000);
+  const frac = String(n % 100_000_000).padStart(8, "0").replace(/0+$/, "");
+  return frac ? `${whole}.${frac}` : String(whole);
+}
+
 export function btcToSats(btc: number): number {
   if (!Number.isFinite(btc) || btc < 0) return 0;
   const [whole, frac = ""] = btc.toFixed(8).split(".");
@@ -385,6 +392,29 @@ function base64ToBytes(text: string): Uint8Array | null {
 
 function bytesToHex(data: Uint8Array): string {
   return [...data].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+export type SigInput = { index: number; pubkeys: string[]; finalized: boolean };
+
+export function inspectSignatures(text: string): { inputs: SigInput[] } {
+  const raw = text.trim().replace(/\s+/g, "");
+  if (!raw) throw new Error("tx.err.empty");
+  if (/^[0-9a-fA-F]+$/.test(raw)) return { inputs: [] };
+  const decoded = base64ToBytes(raw);
+  if (!decoded || !isPsbt(decoded)) throw new Error("tx.err.signed");
+  const maps = parseMaps(decoded);
+  const unsigned = (maps[0] ?? []).find((e) => e.key.length === 1 && e.key[0] === 0x00)?.value;
+  const count = unsigned ? parseUnsigned(unsigned).inputs.length : 0;
+  const inputs: SigInput[] = [];
+  for (let n = 0; n < count; n++) {
+    const map = maps[1 + n] ?? [];
+    const pubkeys = map
+      .filter((e) => e.key.length > 1 && e.key[0] === 0x02)
+      .map((e) => bytesToHex(e.key.slice(1)));
+    const finalized = map.some((e) => e.key.length === 1 && (e.key[0] === 0x07 || e.key[0] === 0x08) && e.value.length > 0);
+    inputs.push({ index: n, pubkeys, finalized });
+  }
+  return { inputs };
 }
 
 export function withPartialSigs(

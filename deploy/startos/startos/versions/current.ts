@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.34:0',
+  version: '0.1.35:0',
   releaseNotes: {
     en_US:
-      'Transaction tab: pick UTXOs, several recipients with QR, change address from the wallet, fee in sat/vB. Recovery is one PSBT per coin after the timelock, no address reuse. Sign on Ledger or BitBox, or broadcast a finalized transaction to the node.',
+      'Transaction tab: pick the spend path first, Max beside the amount, fee in sat/vB taken from the amount or from change. Export the PSBT as a file or QR. Import shows which signatures are present and which are still missing. Version in the banner.',
     de_DE:
-      'Transaktions-Tab: UTXOs wählen, mehrere Empfänger mit QR, Wechseladresse aus der Wallet, Gebühr in sat/vB. Recovery: eine PSBT je Coin nach dem Timelock, keine Adress-Wiederverwendung. Signieren mit Ledger oder BitBox, oder fertige Transaktion an die Node senden.',
+      'Transaktions-Tab: zuerst den Ausgabepfad, Max neben dem Betrag, Gebühr in sat/vB vom Betrag oder vom Wechselgeld. PSBT als Datei oder QR. Import zeigt vorhandene und fehlende Signaturen. Version im Banner.',
     es_ES:
-      'Pestaña de transacción: UTXOs, varios destinatarios con QR, cambio desde el monedero, comisión en sat/vB. Recuperación: una PSBT por moneda tras el timelock. Firma con Ledger o BitBox, o envía la transacción al nodo.',
+      'Pestaña de transacción: ruta primero, máximo junto al importe, comisión en sat/vB del importe o del cambio. PSBT como archivo o QR. La importación muestra firmas presentes y faltantes. Versión en el banner.',
     pl_PL:
-      'Karta transakcji: UTXO, wielu odbiorców z QR, reszta z portfela, opłata w sat/vB. Recovery: jedna PSBT na monetę po timelocku. Podpis Ledger lub BitBox, albo wysyłka do węzła.',
+      'Karta transakcji: najpierw ścieżka, Max przy kwocie, opłata sat/vB z kwoty lub z reszty. PSBT jako plik lub QR. Import pokazuje podpisy. Wersja na banerze.',
     fr_FR:
-      'Onglet transaction : UTXO, plusieurs destinataires avec QR, monnaie depuis le wallet, frais en sat/vB. Recovery : une PSBT par pièce après le timelock. Signature Ledger ou BitBox, ou diffusion vers le nœud.',
+      'Onglet transaction : chemin d’abord, Max à côté du montant, frais en sat/vB pris sur le montant ou sur la monnaie. PSBT en fichier ou QR. L’import indique les signatures présentes et manquantes. Version dans la bannière.',
   },
   migrations: {
     up: async () => {},
