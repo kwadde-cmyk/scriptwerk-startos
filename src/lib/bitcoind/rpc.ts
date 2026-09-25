@@ -532,6 +532,12 @@ export async function scanWatchWallet(
   });
 }
 
+export async function broadcastRawTx(config: BitcoindConfig, hex: string): Promise<string> {
+  const id = await jsonRpc(config, "sendrawtransaction", [hex]);
+  if (typeof id !== "string" || !/^[0-9a-f]{64}$/i.test(id)) throw new Error("tx.err.broadcast");
+  return id;
+}
+
 export async function fetchElectrumTip(server?: string): Promise<number> {
   const res = await fetch("/electrum", {
     method: "POST",

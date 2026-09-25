@@ -1,0 +1,471 @@
+import { useMemo, useState } from "react";
+import { QrCode } from "lucide-react";
+import { addressFromScan, btcToSats, buildPsbt, estimateVbytes, extractSignedTx, feeFromRate, planPayments, satsFromDecimal } from "@/lib/tx/psbt";
+import { formatAmount, type UtxoHit, type WatchAddr } from "@/lib/hw/address-check";
+import { evaluateCoinStatus } from "@/lib/miniscript/coin-status";
+import { describeStageSlots, type Stage } from "@/lib/miniscript/stages";
+import { broadcastRawTx } from "@/lib/bitcoind/rpc";
+import { compileBip388 } from "@/lib/miniscript/bip388";
+import { useBitcoind } from "@/store/bitcoind";
+import { useHardware } from "@/store/hardware";
+import { useStudio } from "@/store/studio";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CopyButton } from "@/components/copy-button";
+import { FilePick, QrScanner } from "@/components/qr-io";
+import { useT } from "@/lib/use-t";
+import { localizeMessage, numberLocale } from "@/lib/i18n";
+import type { HwKind } from "@/lib/hw";
+
+const NO_COINS: UtxoHit[] = [];
+const NO_ADDRS: WatchAddr[] = [];
+
+type PayRow = { id: string; address: string; amount: string };
+
+function newRow(): PayRow {
+  return { id: Math.random().toString(36).slice(2, 8), address: "", amount: "" };
+}
+
+function timelockOpen(coin: UtxoHit, tip: number, stages: ReturnType<typeof useStudio.getState>["stages"], reuse: boolean, root: ReturnType<typeof useStudio.getState>["root"]) {
+  const status = evaluateCoinStatus({ height: coin.height, tip, stages, reuse, root });
+  return status.paths.some((p) => p.open && p.delay > 0);
+}
+
+export function TxTab() {
+  const { t, locale } = useT();
+  const [mode, setMode] = useState<"send" | "recovery">("send");
+  return (
+    <div className="space-y-5">
+      <div className="flex gap-1 rounded-lg border border-border p-1">
+        <Button type="button" className="flex-1" variant={mode === "send" ? "default" : "outline"} onClick={() => setMode("send")}>
+          {t("tx.send")}
+        </Button>
+        <Button type="button" className="flex-1" variant={mode === "recovery" ? "default" : "outline"} onClick={() => setMode("recovery")}>
+          {t("tx.recovery")}
+        </Button>
+      </div>
+      {mode === "send" ? <SendPane /> : <RecoveryPane />}
+      <BroadcastPane />
+    </div>
+  );
+}
+
+function SendPane() {
+  const { t, locale } = useT();
+  const nloc = numberLocale(locale);
+  const unit = useStudio((s) => s.amountUnit);
+  const coins = useBitcoind((s) => s.lastWatch?.unspents) ?? NO_COINS;
+  const addresses = useBitcoind((s) => s.lastWatch?.addresses) ?? NO_ADDRS;
+  const stages = useStudio((s) => s.stages);
+  const reuse = useStudio((s) => s.reuseKeys);
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState<string[]>([]);
+  const [picked, setPicked] = useState<string[]>([]);
+  const [rows, setRows] = useState<PayRow[]>([newRow()]);
+  const [change, setChange] = useState("");
+  const [changeEdited, setChangeEdited] = useState(false);
+  const [rate, setRate] = useState("2");
+  const [psbt, setPsbt] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const selected = coins.filter((c) => picked.includes(`${c.txid}:${c.vout}`));
+  const sumBtc = selected.reduce((s, c) => s + c.amount, 0);
+  const suggested = useMemo(() => suggestChange(addresses, avoidSet(selected, rows)), [addresses, selected, rows]);
+  const changeValue = changeEdited ? change : (suggested?.address ?? "");
+  const size = spendSize(stages, reuse, 0);
+  const vbytes = estimateVbytes({
+    inputs: Math.max(1, selected.length),
+    outputs: [...rows.filter((r) => r.address.trim()).map((r) => r.address), ...(changeValue ? [changeValue] : [""])],
+    sigs: size.sigs,
+    keys: size.keys,
+  });
+  const feeSats = feeFromRate(Number(rate.replace(",", ".")), vbytes);
+
+  function confirmPick() {
+    setPicked(draft);
+    setOpen(false);
+    setPsbt("");
+  }
+
+  function build() {
+    setError(null);
+    setPsbt("");
+    try {
+      const plan = planPayments({
+        coins: selected.map(asCoin),
+        payments: rows
+          .filter((r) => r.address.trim())
+          .map((r) => ({ address: r.address, sats: satsFromDecimal(r.amount) })),
+        feeSats,
+        changeAddress: changeValue,
+      });
+      setPsbt(buildPsbt(plan));
+    } catch (e) {
+      setError(localizeMessage(locale, e instanceof Error ? e.message : "tx.funds"));
+    }
+  }
+
+  return (
+    <section className="space-y-3">
+      <p className="text-2xs text-pretty text-fg-muted">{t("tx.sendBlurb")}</p>
+      <Button type="button" variant="outline" onClick={() => { setDraft(picked); setOpen(true); }}>
+        {t("tx.pick")}
+      </Button>
+      <p className="font-mono text-sm">
+        {t("tx.sum")} {formatAmount(sumBtc, unit, nloc).label}
+        <span className="ml-2 text-2xs text-fg-muted">{t("tx.coinN", { n: String(selected.length) })}</span>
+      </p>
+      {rows.map((row, i) => (
+        <div key={row.id} className="grid gap-2 sm:grid-cols-[1fr_8rem_auto]">
+          <AddressField
+            id={`tx-to-${row.id}`}
+            label={i === 0 ? t("tx.to") : t("tx.toMore")}
+            value={row.address}
+            onChange={(address) => setRows((cur) => cur.map((r) => (r.id === row.id ? { ...r, address } : r)))}
+          />
+          <div>
+            <Label htmlFor={`tx-amt-${row.id}`}>{t("tx.amount")}</Label>
+            <Input
+              id={`tx-amt-${row.id}`}
+              inputMode="decimal"
+              value={row.amount}
+              placeholder="0.001"
+              onChange={(e) => setRows((cur) => cur.map((r) => (r.id === row.id ? { ...r, amount: e.target.value } : r)))}
+              className="mt-1 font-mono"
+            />
+          </div>
+          <div className="flex items-end">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={rows.length < 2}
+              onClick={() => setRows((cur) => cur.filter((r) => r.id !== row.id))}
+            >
+              {t("tx.remove")}
+            </Button>
+          </div>
+        </div>
+      ))}
+      <Button type="button" variant="outline" onClick={() => setRows((cur) => [...cur, newRow()])}>
+        {t("tx.addAddr")}
+      </Button>
+      <AddressField
+        id="tx-change"
+        label={t("tx.change")}
+        value={changeValue}
+        onChange={(next) => {
+          setChangeEdited(true);
+          setChange(next);
+        }}
+      />
+      {suggested && !changeEdited ? (
+        <p className="text-2xs text-fg-muted">{t("tx.changeHint", { n: String(suggested.index) })}</p>
+      ) : !changeValue ? (
+        <p className="text-2xs text-fg-muted">{t("tx.noChange")}</p>
+      ) : null}
+      <div>
+        <Label htmlFor="tx-fee">{t("tx.feeRate")}</Label>
+        <Input id="tx-fee" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} className="mt-1 font-mono" />
+        <p className="mt-1 text-2xs text-fg-muted">{t("tx.feeHint", { vb: String(vbytes), sats: String(feeSats) })}</p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button type="button" onClick={build} disabled={!selected.length}>{t("tx.build")}</Button>
+        <Button type="button" variant="outline" disabled={!psbt || !!busy} onClick={() => void sign(psbt, "ledger", setBusy, setPsbt, setError, locale)}>
+          {busy === "ledger" ? t("tx.signing") : t("tx.ledger")}
+        </Button>
+        <Button type="button" variant="outline" disabled={!psbt || !!busy} onClick={() => void sign(psbt, "bitbox", setBusy, setPsbt, setError, locale)}>
+          {busy === "bitbox" ? t("tx.signing") : t("tx.bitbox")}
+        </Button>
+      </div>
+      {error ? <p className="text-xs text-pretty text-danger">{error}</p> : null}
+      {psbt ? <PsbtBox value={psbt} /> : null}
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("tx.pick")}</DialogTitle>
+            <DialogDescription>{t("tx.pickBlurb")}</DialogDescription>
+          </DialogHeader>
+          {!coins.length ? (
+            <p className="text-xs text-fg-muted">{t("tx.needScan")}</p>
+          ) : (
+            <ul className="max-h-80 space-y-1 overflow-auto">
+              {coins.map((c) => {
+                const id = `${c.txid}:${c.vout}`;
+                const on = draft.includes(id);
+                return (
+                  <li key={id}>
+                    <button
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setDraft((cur) => (cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]))}
+                      className={
+                        on
+                          ? "flex min-h-11 w-full items-center justify-between gap-2 rounded-md bg-muted px-3 text-left text-xs"
+                          : "flex min-h-11 w-full items-center justify-between gap-2 rounded-md border border-border px-3 text-left text-xs text-fg-muted"
+                      }
+                    >
+                      <span className="truncate font-mono">{c.txid.slice(0, 10)}…:{c.vout}</span>
+                      <span className="shrink-0 tabular-nums">{formatAmount(c.amount, unit, nloc).label}</span>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+          <Button type="button" onClick={confirmPick}>{t("tx.useCoins")}</Button>
+        </DialogContent>
+      </Dialog>
+    </section>
+  );
+}
+
+function RecoveryPane() {
+  const { t, locale } = useT();
+  const nloc = numberLocale(locale);
+  const unit = useStudio((s) => s.amountUnit);
+  const stages = useStudio((s) => s.stages);
+  const reuse = useStudio((s) => s.reuseKeys);
+  const root = useStudio((s) => s.root);
+  const snap = useBitcoind((s) => s.lastWatch);
+  const probe = useBitcoind((s) => s.probe);
+  const tip = probe?.blocks && probe.chain !== "demo" ? probe.blocks : snap?.height ?? 0;
+  const [rate, setRate] = useState("2");
+  const [built, setBuilt] = useState<{ id: string; psbt: string }[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const rows = useMemo(() => {
+    const coins = (snap?.unspents ?? []).filter((c) => c.address && timelockOpen(c, tip, stages, reuse, root));
+    const taken = new Set(coins.map((c) => c.address || ""));
+    const fresh = freshReceive(snap?.addresses ?? [], taken);
+    return coins.map((coin, i) => ({ coin, dest: fresh[i] ?? "" }));
+  }, [snap, tip, stages, reuse, root]);
+
+  function buildAll() {
+    setError(null);
+    const next: { id: string; psbt: string }[] = [];
+    try {
+      for (const row of rows) {
+        if (!row.dest) throw new Error("tx.err.fresh");
+        if (row.dest === row.coin.address) throw new Error("tx.err.reuse");
+        const size = spendSize(stages, reuse, recoveryIndex(row.coin, tip, stages, reuse, root));
+        const vb = estimateVbytes({ inputs: 1, outputs: [row.dest], sigs: size.sigs, keys: size.keys });
+        const feeSats = feeFromRate(Number(rate.replace(",", ".")), vb);
+        const plan = planPayments({
+          coins: [asCoin(row.coin)],
+          payments: [{ address: row.dest, sats: btcToSats(row.coin.amount) - feeSats }],
+          feeSats,
+        });
+        if (plan.outputs.length !== 1) throw new Error("tx.err.reuse");
+        next.push({ id: `${row.coin.txid}:${row.coin.vout}`, psbt: buildPsbt(plan) });
+      }
+      setBuilt(next);
+    } catch (e) {
+      setBuilt([]);
+      setError(localizeMessage(locale, e instanceof Error ? e.message : "tx.funds"));
+    }
+  }
+
+  return (
+    <section className="space-y-3">
+      <p className="text-2xs text-pretty text-fg-muted">{t("tx.recoveryBlurb")}</p>
+      <div>
+        <Label htmlFor="tx-rec-fee">{t("tx.feeRate")}</Label>
+        <Input id="tx-rec-fee" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} className="mt-1 font-mono" />
+      </div>
+      {!rows.length ? <p className="text-xs text-fg-muted">{t("tx.recoveryEmpty")}</p> : null}
+      <ul className="space-y-3">
+        {rows.map((row) => {
+          const id = `${row.coin.txid}:${row.coin.vout}`;
+          const psbt = built.find((b) => b.id === id)?.psbt ?? "";
+          const size = spendSize(stages, reuse, recoveryIndex(row.coin, tip, stages, reuse, root));
+          const vb = estimateVbytes({ inputs: 1, outputs: [row.dest || ""], sigs: size.sigs, keys: size.keys });
+          const feeSats = feeFromRate(Number(rate.replace(",", ".")), vb);
+          const outSats = Math.max(0, btcToSats(row.coin.amount) - feeSats);
+          return (
+            <li key={id} className="space-y-2 rounded-md border border-border p-3">
+              <p className="font-mono text-2xs text-fg-muted">{row.coin.txid.slice(0, 12)}…:{row.coin.vout}</p>
+              <p className="break-all font-mono text-xs">{t("tx.from")} {row.coin.address}</p>
+              <p className="break-all font-mono text-xs">{t("tx.to")} {row.dest || t("tx.noFresh")}</p>
+              <p className="text-xs text-fg-muted">
+                {formatAmount(outSats / 1e8, unit, nloc).label} · {t("tx.feeHint", { vb: String(vb), sats: String(feeSats) })}
+              </p>
+              <div className="flex flex-wrap items-center gap-2">
+                {psbt ? <CopyButton value={psbt} label={t("tx.copy")} className="size-11" /> : <span className="text-2xs text-fg-muted">{t("tx.buildEach")}</span>}
+                <Button type="button" variant="outline" disabled={!psbt || !!busy} onClick={() => void sign(psbt, "ledger", setBusy, (next) => setBuilt((cur) => cur.map((b) => (b.id === id ? { ...b, psbt: next } : b))), setError, locale)}>
+                  {t("tx.ledger")}
+                </Button>
+                <Button type="button" variant="outline" disabled={!psbt || !!busy} onClick={() => void sign(psbt, "bitbox", setBusy, (next) => setBuilt((cur) => cur.map((b) => (b.id === id ? { ...b, psbt: next } : b))), setError, locale)}>
+                  {t("tx.bitbox")}
+                </Button>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+      <Button type="button" onClick={buildAll} disabled={!rows.length}>{t("tx.buildEach")}</Button>
+      {error ? <p className="text-xs text-pretty text-danger">{error}</p> : null}
+    </section>
+  );
+}
+
+function BroadcastPane() {
+  const { t, locale } = useT();
+  const status = useBitcoind((s) => s.status);
+  const demo = useBitcoind((s) => s.demo);
+  const [signed, setSigned] = useState("");
+  const [txid, setTxid] = useState("");
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function send() {
+    setError(null);
+    setTxid("");
+    setSending(true);
+    try {
+      const hex = extractSignedTx(signed);
+      const node = useBitcoind.getState();
+      const id = await broadcastRawTx({ url: node.url, username: node.username, password: node.password }, hex);
+      setTxid(id);
+    } catch (e) {
+      setError(localizeMessage(locale, e instanceof Error ? e.message : "tx.err.broadcast"));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  return (
+    <section className="space-y-2 border-t border-border pt-4">
+      <h2 className="text-2xs font-medium tracking-[0.14em] text-fg-subtle uppercase">{t("tx.signed")}</h2>
+      <p className="text-2xs text-pretty text-fg-muted">{t("tx.signedBlurb")}</p>
+      <Textarea value={signed} onChange={(e) => setSigned(e.target.value)} className="min-h-24" spellCheck={false} />
+      <div className="flex flex-wrap items-center gap-2">
+        <FilePick accept=".psbt,.txn,.txt,.hex,text/plain" label={t("tx.file")} onRead={setSigned} />
+        <Button type="button" onClick={() => void send()} disabled={sending || !signed.trim() || status !== "ready" || demo}>
+          {sending ? t("tx.sending") : t("tx.broadcast")}
+        </Button>
+      </div>
+      {status !== "ready" || demo ? <p className="text-xs text-fg-muted">{t("tx.needNode")}</p> : null}
+      {error ? <p className="text-xs text-pretty text-danger">{error}</p> : null}
+      {txid ? <p className="break-all font-mono text-xs">{txid} <CopyButton value={txid} label={t("tx.copyTxid")} /></p> : null}
+    </section>
+  );
+}
+
+function AddressField({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (v: string) => void }) {
+  const { t } = useT();
+  const [scan, setScan] = useState(false);
+  return (
+    <div>
+      <Label htmlFor={id}>{label}</Label>
+      <div className="mt-1 flex gap-2">
+        <Input id={id} value={value} onChange={(e) => onChange(e.target.value)} className="font-mono" autoComplete="off" spellCheck={false} />
+        <Button type="button" variant="outline" size="icon" aria-label={t("tx.scan")} onClick={() => setScan(true)}>
+          <QrCode />
+        </Button>
+      </div>
+      <Dialog open={scan} onOpenChange={setScan}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("tx.scan")}</DialogTitle>
+            <DialogDescription>{label}</DialogDescription>
+          </DialogHeader>
+          <QrScanner
+            onRead={(text) => {
+              onChange(addressFromScan(text));
+              setScan(false);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function PsbtBox({ value }: { value: string }) {
+  const { t } = useT();
+  return (
+    <div className="flex items-start gap-2 rounded-md border border-border p-3">
+      <p className="min-w-0 flex-1 break-all font-mono text-2xs text-fg-muted">{value}</p>
+      <CopyButton value={value} label={t("tx.copy")} />
+    </div>
+  );
+}
+
+function asCoin(c: UtxoHit) {
+  return { txid: c.txid, vout: c.vout, amountBtc: c.amount, address: c.address || "" };
+}
+
+function suggestChange(addresses: WatchAddr[], avoid: Set<string>): WatchAddr | null {
+  return addresses.find((a) => a.kind === "change" && a.coins === 0 && a.address && !avoid.has(a.address)) ?? null;
+}
+
+function avoidSet(coins: UtxoHit[], rows: PayRow[]): Set<string> {
+  const avoid = new Set<string>();
+  for (const c of coins) if (c.address) avoid.add(c.address);
+  for (const r of rows) if (r.address.trim()) avoid.add(r.address.trim());
+  return avoid;
+}
+
+function spendSize(stages: Stage[], reuse: boolean, index = 0): { sigs: number; keys: number } {
+  const slots = describeStageSlots(stages, reuse);
+  const slot = slots[index] ?? slots[0];
+  return { sigs: Math.max(1, slot?.k ?? 1), keys: Math.max(1, slot?.n ?? 1) };
+}
+
+function recoveryIndex(
+  coin: UtxoHit,
+  tip: number,
+  stages: Stage[],
+  reuse: boolean,
+  root: ReturnType<typeof useStudio.getState>["root"],
+): number {
+  const status = evaluateCoinStatus({ height: coin.height, tip, stages, reuse, root });
+  const path = status.paths.filter((p) => p.open && p.delay > 0).sort((a, b) => a.delay - b.delay)[0];
+  return path ? Math.max(0, path.index - 1) : 0;
+}
+
+function freshReceive(addresses: WatchAddr[], taken: Set<string>): string[] {
+  const used = new Set(taken);
+  const out: string[] = [];
+  for (const a of addresses) {
+    if (a.kind !== "receive" || a.coins > 0) continue;
+    if (used.has(a.address)) continue;
+    used.add(a.address);
+    out.push(a.address);
+  }
+  return out;
+}
+
+async function sign(
+  psbt: string,
+  kind: HwKind,
+  setBusy: (v: string | null) => void,
+  setPsbt: (v: string) => void,
+  setError: (v: string | null) => void,
+  locale: "de" | "en",
+) {
+  setError(null);
+  setBusy(kind);
+  try {
+    const studio = useStudio.getState();
+    if (!studio.root) throw new Error("tx.needPolicy");
+    const compiled = compileBip388(studio.root, studio.keys, studio.policyName || "Scriptwerk", studio.reuseKeys);
+    if (!compiled.ok) throw new Error(compiled.error);
+    const hw = useHardware.getState();
+    if (!hw.session || hw.demo || hw.kind !== kind) await hw.connect(kind, false);
+    const session = useHardware.getState().session;
+    if (!session || session.demo) throw new Error("tx.err.demoSign");
+    const hmac = await useHardware.getState().registerPolicy(compiled.policy);
+    const signed = await session.signPsbt({ psbt, policy: compiled.policy, hmac });
+    setPsbt(signed);
+  } catch (e) {
+    setError(localizeMessage(locale, e instanceof Error ? e.message : "tx.err.sign"));
+  } finally {
+    setBusy(null);
+  }
+}
