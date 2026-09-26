@@ -1,5 +1,6 @@
 import { checksumOf, coreCanonicalBody, stripChecksum } from "../miniscript/checksum.ts";
 import { rewriteSortedMultiForCore } from "../miniscript/compile.ts";
+import { deriveAddressesLocal } from "./derive-local.ts";
 import {
   clampUtxoCount,
   descriptorForBranch,
@@ -483,6 +484,32 @@ async function electrumLookup(addresses: string[], server: string): Promise<Utxo
   };
 }
 
+async function agreeWithCore(
+  config: BitcoindConfig,
+  descriptor: string,
+  begin: number,
+  end: number,
+  local: string[],
+): Promise<boolean | undefined> {
+  if (!config.url.trim()) return undefined;
+  const rewritten = rewriteSortedMultiForCore(descriptor);
+  const attempts = rewritten === descriptor ? [descriptor] : [descriptor, rewritten];
+  let core: string[] | null = null;
+  for (const desc of attempts) {
+    try {
+      core = await deriveAddressRange(config, desc, begin, end);
+      break;
+    } catch {
+      core = null;
+    }
+  }
+  if (!core) return false;
+  if (core.length !== local.length || core.some((address, i) => address !== local[i])) {
+    throw new Error("hw.utxo.coreMismatch");
+  }
+  return true;
+}
+
 export async function scanDescriptorUtxos(
   config: BitcoindConfig,
   descriptor: string,
@@ -491,14 +518,17 @@ export async function scanDescriptorUtxos(
   const objects = utxoScanObjects(descriptor, opts.count, opts.receive, opts.change, opts.from ?? 0);
   if (!objects.length) throw new Error("hw.utxo.none");
   const addresses: string[] = [];
+  let coreMatch: boolean | undefined;
   for (const o of objects) {
-    const desc = rewriteSortedMultiForCore(o.desc);
-    const list = await deriveAddressRange(config, desc, o.range[0], o.range[1]);
+    const list = deriveAddressesLocal(o.desc, o.range[0], o.range[1]);
+    const agreed = await agreeWithCore(config, o.desc, o.range[0], o.range[1], list);
+    if (agreed === false) coreMatch = false;
+    else if (agreed === true && coreMatch !== false) coreMatch = true;
     addresses.push(...list);
   }
   const last = objects[0]?.range[1] ?? -1;
   const res = await electrumLookup(addresses, opts.electrum ?? "");
-  return { ...res, scanned: last + 1 };
+  return { ...res, scanned: last + 1, coreMatch };
 }
 
 export async function scanWatchWallet(
@@ -514,9 +544,13 @@ export async function scanWatchWallet(
   if (opts.receive) branches.push({ kind: "receive", change: 0 });
   if (opts.change) branches.push({ kind: "change", change: 1 });
   if (!branches.length) throw new Error("hw.utxo.none");
+  let coreMatch: boolean | undefined;
   for (const b of branches) {
-    const desc = rewriteSortedMultiForCore(descriptorForBranch(descriptor, b.change));
-    const list = await deriveAddressRange(config, desc, from, end);
+    const desc = descriptorForBranch(descriptor, b.change);
+    const list = deriveAddressesLocal(desc, from, end);
+    const agreed = await agreeWithCore(config, desc, from, end, list);
+    if (agreed === false) coreMatch = false;
+    else if (agreed === true && coreMatch !== false) coreMatch = true;
     list.forEach((address, i) => labeled.push({ address, kind: b.kind, index: from + i }));
   }
   const res = await electrumLookup(
@@ -529,6 +563,7 @@ export async function scanWatchWallet(
     unspents: res.unspents,
     scanned: end + 1,
     checksum: opts.checksum ?? checksumOf(descriptor),
+    coreMatch,
   });
 }
 
