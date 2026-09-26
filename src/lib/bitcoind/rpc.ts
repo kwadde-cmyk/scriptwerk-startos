@@ -1,6 +1,5 @@
 import { checksumOf, coreCanonicalBody, stripChecksum } from "../miniscript/checksum.ts";
 import { rewriteSortedMultiForCore } from "../miniscript/compile.ts";
-import { deriveAddressesLocal } from "./derive-local.ts";
 import {
   clampUtxoCount,
   descriptorForBranch,
@@ -460,27 +459,34 @@ export async function deriveAddressRange(
   return raw.map(String);
 }
 
-async function electrumLookup(addresses: string[], server: string): Promise<UtxoScanResult> {
-  const unique = [...new Set(addresses.filter(Boolean))];
+async function electrumLookup(
+  groups: { desc: string; from: number; to: number }[],
+  server: string,
+): Promise<UtxoScanResult & { groups: string[][] }> {
   const res = await fetch("/electrum", {
     method: "POST",
     headers: { "content-type": "application/json" },
     cache: "no-store",
-    body: JSON.stringify({ addresses: unique, server }),
+    body: JSON.stringify({
+      derive: groups.map((g) => ({ desc: g.desc, from: g.from, to: g.to })),
+      server,
+    }),
   });
   if (res.status === 404) throw new Error("hw.utxo.needElectrum");
   const body = (await res.json().catch(() => null)) as {
-    result?: { unspents?: UtxoScanResult["unspents"]; total?: number; height?: number };
+    result?: { unspents?: UtxoScanResult["unspents"]; total?: number; height?: number; groups?: string[][] };
     error?: { message?: string };
   } | null;
   if (!body) throw new Error("hw.utxo.bad");
   if (body.error?.message) throw new Error(body.error.message);
   if (res.status >= 400) throw new Error(body.error?.message || "hw.utxo.needElectrum");
   const unspents = Array.isArray(body.result?.unspents) ? body.result.unspents : [];
+  const lists = Array.isArray(body.result?.groups) ? body.result.groups : [];
   return {
     height: Number(body.result?.height) || 0,
     total: Number(body.result?.total) || 0,
     unspents,
+    groups: lists.map((list) => (Array.isArray(list) ? list.map(String) : [])),
   };
 }
 
@@ -517,17 +523,19 @@ export async function scanDescriptorUtxos(
 ): Promise<UtxoScanResult> {
   const objects = utxoScanObjects(descriptor, opts.count, opts.receive, opts.change, opts.from ?? 0);
   if (!objects.length) throw new Error("hw.utxo.none");
-  const addresses: string[] = [];
+  const res = await electrumLookup(
+    objects.map((o) => ({ desc: o.desc, from: o.range[0], to: o.range[1] })),
+    opts.electrum ?? "",
+  );
   let coreMatch: boolean | undefined;
-  for (const o of objects) {
-    const list = deriveAddressesLocal(o.desc, o.range[0], o.range[1]);
+  for (let i = 0; i < objects.length; i++) {
+    const o = objects[i]!;
+    const list = res.groups[i] ?? [];
     const agreed = await agreeWithCore(config, o.desc, o.range[0], o.range[1], list);
     if (agreed === false) coreMatch = false;
     else if (agreed === true && coreMatch !== false) coreMatch = true;
-    addresses.push(...list);
   }
   const last = objects[0]?.range[1] ?? -1;
-  const res = await electrumLookup(addresses, opts.electrum ?? "");
   return { ...res, scanned: last + 1, coreMatch };
 }
 
@@ -539,24 +547,28 @@ export async function scanWatchWallet(
   const from = Math.max(0, Math.floor(Number(opts.from) || 0));
   const n = clampUtxoCount(opts.count);
   const end = from + n - 1;
-  const labeled: { address: string; kind: AddressKind; index: number }[] = [];
   const branches: { kind: AddressKind; change: 0 | 1 }[] = [];
   if (opts.receive) branches.push({ kind: "receive", change: 0 });
   if (opts.change) branches.push({ kind: "change", change: 1 });
   if (!branches.length) throw new Error("hw.utxo.none");
-  let coreMatch: boolean | undefined;
-  for (const b of branches) {
-    const desc = descriptorForBranch(descriptor, b.change);
-    const list = deriveAddressesLocal(desc, from, end);
-    const agreed = await agreeWithCore(config, desc, from, end, list);
-    if (agreed === false) coreMatch = false;
-    else if (agreed === true && coreMatch !== false) coreMatch = true;
-    list.forEach((address, i) => labeled.push({ address, kind: b.kind, index: from + i }));
-  }
+  const specs = branches.map((b) => ({
+    kind: b.kind,
+    desc: descriptorForBranch(descriptor, b.change),
+  }));
   const res = await electrumLookup(
-    labeled.map((a) => a.address),
+    specs.map((s) => ({ desc: s.desc, from, to: end })),
     opts.electrum ?? "",
   );
+  const labeled: { address: string; kind: AddressKind; index: number }[] = [];
+  specs.forEach((spec, i) => {
+    (res.groups[i] ?? []).forEach((address, n) => labeled.push({ address, kind: spec.kind, index: from + n }));
+  });
+  let coreMatch: boolean | undefined;
+  for (let i = 0; i < specs.length; i++) {
+    const agreed = await agreeWithCore(config, specs[i]!.desc, from, end, res.groups[i] ?? []);
+    if (agreed === false) coreMatch = false;
+    else if (agreed === true && coreMatch !== false) coreMatch = true;
+  }
   return buildWatchSnapshot({
     height: res.height,
     addresses: labeled,

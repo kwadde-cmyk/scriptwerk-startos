@@ -182,6 +182,33 @@ async function electrumBatch(target, calls, timeoutMs = 25000) {
   });
 }
 
+async function deriveAddresses(desc, from, to) {
+  const { Output } = await import("@bitcoinerlab/descriptors");
+  const body = String(desc ?? "").replace(/#[a-z0-9]+$/i, "");
+  const start = Math.max(0, Math.floor(Number(from) || 0));
+  const end = Math.min(start + 199, Math.max(start, Math.floor(Number(to) || start)));
+  const addresses = [];
+  for (let i = start; i <= end; i++) {
+    try {
+      addresses.push(new Output({ descriptor: body, index: i, checksumRequired: false }).getAddress());
+    } catch {
+      throw new Error("hw.utxo.derive");
+    }
+  }
+  return addresses;
+}
+
+export async function lookupElectrumDerived(groups, serverFromClient) {
+  const lists = [];
+  for (const g of groups) lists.push(await deriveAddresses(g.desc, g.from, g.to));
+  const addresses = lists.flat();
+  const looked = await lookupElectrumUtxos(addresses, serverFromClient);
+  if (looked.status !== 200) return looked;
+  const parsed = JSON.parse(looked.body);
+  parsed.result.groups = lists;
+  return { status: 200, body: JSON.stringify(parsed) };
+}
+
 export async function lookupElectrumUtxos(addresses, serverFromClient) {
   const fromUi = parseTarget(serverFromClient);
   const env = parseTarget(electrumEnvUrl());
@@ -306,6 +333,13 @@ export function attachElectrumProxy(middlewares) {
     try {
       if (parsed.tip) {
         const out = await lookupElectrumTip(parsed.server);
+        res.statusCode = out.status;
+        res.setHeader("content-type", "application/json");
+        res.end(out.body);
+        return;
+      }
+      if (Array.isArray(parsed.derive) && parsed.derive.length) {
+        const out = await lookupElectrumDerived(parsed.derive, parsed.server);
         res.statusCode = out.status;
         res.setHeader("content-type", "application/json");
         res.end(out.body);
