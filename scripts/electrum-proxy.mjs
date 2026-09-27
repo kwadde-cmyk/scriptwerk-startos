@@ -198,6 +198,48 @@ async function deriveAddresses(desc, from, to) {
   return addresses;
 }
 
+export async function expandDescriptorSpots(desc, spots) {
+  const { Output } = await import("@bitcoinerlab/descriptors");
+  const body = String(desc ?? "").replace(/#[a-z0-9]+$/i, "");
+  if (!body) throw new Error("tx.err.script");
+  const items = [];
+  for (const spot of (Array.isArray(spots) ? spots : []).slice(0, 40)) {
+    const change = Number(spot?.change) ? 1 : 0;
+    const index = Math.max(0, Math.floor(Number(spot?.index) || 0));
+    let out;
+    try {
+      out = new Output({ descriptor: body, index, change, checksumRequired: false });
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "";
+      throw new Error(msg.includes("not sane") ? "tx.err.sane" : "tx.err.script");
+    }
+    const script = out.getWitnessScript();
+    const map = out.expand()?.expansionMap ?? {};
+    const derivations = [];
+    const seen = new Set();
+    for (const info of Object.values(map)) {
+      const pubkey = asHex(info?.pubkey);
+      const fingerprint = asHex(info?.masterFingerprint);
+      const path = String(info?.path ?? "");
+      if (pubkey.length !== 66 || fingerprint.length !== 8 || !path || seen.has(pubkey)) continue;
+      seen.add(pubkey);
+      derivations.push({ pubkey, fingerprint, path });
+    }
+    items.push({
+      address: out.getAddress(),
+      witnessScript: script ? Buffer.from(script).toString("hex") : "",
+      derivations,
+    });
+  }
+  return { status: 200, body: JSON.stringify({ result: { items } }) };
+}
+
+function asHex(value) {
+  if (typeof value === "string") return value.replace(/^0x/i, "").toLowerCase();
+  if (value instanceof Uint8Array) return Buffer.from(value).toString("hex");
+  return "";
+}
+
 export async function lookupElectrumDerived(groups, serverFromClient) {
   const lists = [];
   for (const g of groups) lists.push(await deriveAddresses(g.desc, g.from, g.to));
@@ -346,6 +388,13 @@ export function attachElectrumProxy(middlewares) {
     try {
       if (parsed.tip) {
         const out = await lookupElectrumTip(parsed.server);
+        res.statusCode = out.status;
+        res.setHeader("content-type", "application/json");
+        res.end(out.body);
+        return;
+      }
+      if (parsed.expand) {
+        const out = await expandDescriptorSpots(parsed.descriptor, parsed.spots);
         res.statusCode = out.status;
         res.setHeader("content-type", "application/json");
         res.end(out.body);

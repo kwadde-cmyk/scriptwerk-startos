@@ -1,5 +1,5 @@
 import { bitcoindInfo, bitcoindUpstream, forwardBitcoindRpc } from "../../scripts/bitcoind-proxy.mjs";
-import { electrumInfo, lookupElectrumTip, lookupElectrumUtxos } from "../../scripts/electrum-proxy.mjs";
+import { electrumInfo, expandDescriptorSpots, lookupElectrumTip, lookupElectrumUtxos } from "../../scripts/electrum-proxy.mjs";
 
 interface ProxyEvent {
   url: URL;
@@ -36,7 +36,7 @@ export default async function bitcoindProxyMiddleware(
       return new Response(null, { status: 204, headers: { "cache-control": "no-store" } });
     }
     if (method !== "POST") return new Response("POST only", { status: 405 });
-    let parsed: { addresses?: string[]; server?: string; tip?: boolean } = {};
+    let parsed: { addresses?: string[]; server?: string; tip?: boolean; expand?: boolean; descriptor?: string; spots?: { change?: number; index?: number }[] } = {};
     try {
       if (typeof event.req.json === "function") parsed = (await event.req.json()) as typeof parsed;
       else if (typeof event.req.text === "function") parsed = JSON.parse((await event.req.text()) || "{}") as typeof parsed;
@@ -47,6 +47,13 @@ export default async function bitcoindProxyMiddleware(
       });
     }
     try {
+      if (parsed.expand) {
+        const out = await expandDescriptorSpots(parsed.descriptor, parsed.spots);
+        return new Response(out.body, {
+          status: out.status,
+          headers: { "content-type": "application/json", "cache-control": "no-store" },
+        });
+      }
       if (parsed.tip) {
         const out = await lookupElectrumTip(parsed.server);
         return new Response(out.body, {

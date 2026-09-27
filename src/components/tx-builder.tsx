@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState } from "react";
 import { QrCode, Trash2 } from "lucide-react";
-import { addressFromScan, btcToSats, buildPsbt, estimateVbytes, extractSignedTx, feeFromRate, inspectSignatures, planPayments, satsFromDecimal, satsToDecimal } from "@/lib/tx/psbt";
+import { addressFromScan, btcToSats, buildPsbt, estimateVbytes, expandSpots, extractSignedTx, feeFromRate, inspectSignatures, planPayments, satsFromDecimal, satsToDecimal, type ScriptSpot } from "@/lib/tx/psbt";
 import { formatAmount, type UtxoHit, type WatchAddr } from "@/lib/hw/address-check";
 import { evaluateCoinStatus } from "@/lib/miniscript/coin-status";
 import { describeStageSlots, type Stage } from "@/lib/miniscript/stages";
 import { lockWhen } from "@/lib/miniscript/keys";
+import { compiledForStudio } from "@/lib/miniscript/policy-mode";
 import { broadcastRawTx } from "@/lib/bitcoind/rpc";
 import { compileBip388 } from "@/lib/miniscript/bip388";
 import { useBitcoind } from "@/store/bitcoind";
@@ -79,6 +80,7 @@ function SendPane({ pathIndex }: { pathIndex: number | null }) {
   const stages = useStudio((s) => s.stages);
   const reuse = useStudio((s) => s.reuseKeys);
   const root = useStudio((s) => s.root);
+  const compiled = useStudio(compiledForStudio);
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<string[]>([]);
   const [picked, setPicked] = useState<string[]>([]);
@@ -119,7 +121,7 @@ function SendPane({ pathIndex }: { pathIndex: number | null }) {
     setPsbt("");
   }
 
-  function build() {
+  async function build() {
     setError(null);
     setPsbt("");
     setShowQr(false);
@@ -139,8 +141,15 @@ function SendPane({ pathIndex }: { pathIndex: number | null }) {
         older: locks.older,
         after: locks.after,
       });
+      if (!compiled?.ok) throw new Error("tx.err.script");
+      const meta = await walletMeta(
+        compiled.descriptor,
+        addresses,
+        plan.inputs.map((c) => c.address),
+        plan.outputs.map((o) => o.address),
+      );
       setDustWarn(Boolean(plan.dustChange));
-      setPsbt(buildPsbt(plan));
+      setPsbt(buildPsbt(plan, meta));
     } catch (e) {
       setError(localizeMessage(locale, e instanceof Error ? e.message : "tx.funds"));
     }
@@ -330,6 +339,7 @@ function RecoveryPane({ pathIndex }: { pathIndex: number | null }) {
   const stages = useStudio((s) => s.stages);
   const reuse = useStudio((s) => s.reuseKeys);
   const root = useStudio((s) => s.root);
+  const compiled = useStudio(compiledForStudio);
   const snap = useBitcoind((s) => s.lastWatch);
   const probe = useBitcoind((s) => s.probe);
   const tip = probe?.blocks && probe.chain !== "demo" ? probe.blocks : snap?.height ?? 0;
@@ -350,10 +360,11 @@ function RecoveryPane({ pathIndex }: { pathIndex: number | null }) {
     return coins.map((coin, i) => ({ coin, dest: fresh[i] ?? "" }));
   }, [snap, tip, stages, reuse, root, pathIndex]);
 
-  function buildAll() {
+  async function buildAll() {
     setError(null);
     const next: { id: string; psbt: string }[] = [];
     try {
+      if (!compiled?.ok) throw new Error("tx.err.script");
       for (const row of rows) {
         if (!row.dest) throw new Error("tx.err.fresh");
         if (row.dest === row.coin.address) throw new Error("tx.err.reuse");
@@ -370,7 +381,13 @@ function RecoveryPane({ pathIndex }: { pathIndex: number | null }) {
           after: locks.after,
         });
         if (plan.outputs.length !== 1) throw new Error("tx.err.reuse");
-        next.push({ id: `${row.coin.txid}:${row.coin.vout}`, psbt: buildPsbt(plan) });
+        const meta = await walletMeta(
+          compiled.descriptor,
+          snap?.addresses ?? [],
+          plan.inputs.map((c) => c.address),
+          plan.outputs.map((o) => o.address),
+        );
+        next.push({ id: `${row.coin.txid}:${row.coin.vout}`, psbt: buildPsbt(plan, meta) });
       }
       setBuilt(next);
     } catch (e) {
@@ -613,6 +630,39 @@ function applyFee(
 
 function asCoin(c: UtxoHit) {
   return { txid: c.txid, vout: c.vout, amountBtc: c.amount, address: c.address || "" };
+}
+
+async function walletMeta(descriptor: string, list: WatchAddr[], inputs: string[], outputs: string[]) {
+  const wanted = [
+    ...inputs.map((address) => ({ address, required: true })),
+    ...outputs.map((address) => ({ address, required: false })),
+  ];
+  const spots: { change: number; index: number }[] = [];
+  const ids: (string | null)[] = [];
+  for (const row of wanted) {
+    const hit = list.find((a) => a.address === row.address.trim());
+    if (!hit) {
+      if (row.required) throw new Error("tx.err.script");
+      ids.push(null);
+      continue;
+    }
+    const id = `${hit.kind === "change" ? 1 : 0}:${hit.index}`;
+    if (!spots.some((s) => `${s.change}:${s.index}` === id)) spots.push({ change: hit.kind === "change" ? 1 : 0, index: hit.index });
+    ids.push(id);
+  }
+  const expanded = spots.length ? await expandSpots(descriptor, spots) : [];
+  const by = new Map<string, ScriptSpot>();
+  spots.forEach((spot, i) => {
+    const item = expanded[i];
+    const expected = list.find((a) => (a.kind === "change" ? 1 : 0) === spot.change && a.index === spot.index);
+    if (!item?.witnessScript || !item.derivations?.length || item.address !== expected?.address) throw new Error("tx.err.script");
+    by.set(`${spot.change}:${spot.index}`, item);
+  });
+  const resolved = ids.map((id) => (id ? by.get(id) ?? null : null));
+  return {
+    inputs: resolved.slice(0, inputs.length).map((spot) => spot ?? { address: "", witnessScript: "", derivations: [] }),
+    outputs: resolved.slice(inputs.length),
+  };
 }
 
 function suggestChange(addresses: WatchAddr[], avoid: Set<string>): WatchAddr | null {
