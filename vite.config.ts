@@ -156,6 +156,35 @@ function authPopupPlugin(): Plugin {
   };
 }
 
+const LEDGER_PROCESS: [string, string][] = [
+  ["process.nextTick", "((fn)=>queueMicrotask(fn))"],
+  ["process.browser", "true"],
+  ["process.version", JSON.stringify("v20.0.0")],
+  ["process.stdout", "undefined"],
+  ["process.stderr", "undefined"],
+];
+
+/** Client only. A global define also rewrites the Node server and the page never starts. */
+function ledgerProcessPlugin(): Plugin {
+  return {
+    name: "scriptwerk-ledger-process",
+    applyToEnvironment(env) {
+      return env.name === "client";
+    },
+    transform(code, id) {
+      if (!/node_modules\/(?:\.pnpm\/)?(?:ledger-bitcoin|readable-stream|process-nextick-args|safe-buffer|string_decoder)\//.test(id)) {
+        return null;
+      }
+      if (!code.includes("process.")) return null;
+      let next = code;
+      for (const [key, value] of LEDGER_PROCESS) {
+        if (next.includes(key)) next = next.split(key).join(value);
+      }
+      return next === code ? null : { code: next, map: null };
+    },
+  };
+}
+
 // `0.0.0.0:8080` is the live-preview contract — don't change host/port.
 // The dev server starts once `src/router.tsx` and `src/routes/` exist — see
 // AGENTS.md § "First scaffold".
@@ -174,24 +203,10 @@ export default defineConfig(({ command, isPreview }) => ({
     allowedHosts: true,
   },
   resolve: { tsconfigPaths: true },
-  // readable-stream (pulled in by ledger-bitcoin) reads process.* at import.
-  define: {
-    "process.browser": "true",
-    "process.version": JSON.stringify("v20.0.0"),
-    "process.stdout": "undefined",
-    "process.stderr": "undefined",
-    "process.nextTick": "((fn)=>queueMicrotask(fn))",
-  },
   optimizeDeps: {
     exclude: ["bitbox-api"],
     esbuildOptions: {
-      define: {
-        "process.browser": "true",
-        "process.version": JSON.stringify("v20.0.0"),
-        "process.stdout": "undefined",
-        "process.stderr": "undefined",
-        "process.nextTick": "((fn)=>queueMicrotask(fn))",
-      },
+      define: Object.fromEntries(LEDGER_PROCESS),
     },
   },
   ssr: {
@@ -206,6 +221,7 @@ export default defineConfig(({ command, isPreview }) => ({
     // PWA head + ?install=1 tutorial page; runs before Start/Nitro.
     grokPwaPlugin(),
     bitcoindProxyPlugin(),
+    ledgerProcessPlugin(),
     tailwindcss(),
     tanstackStart(),
     ...(command === "build" || isPreview

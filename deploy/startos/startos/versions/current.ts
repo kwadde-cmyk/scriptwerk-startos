@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.45:0',
+  version: '0.1.46:0',
   releaseNotes: {
     en_US:
-      'Connecting a Ledger no longer crashes with “process is not defined”. The browser build supplies the Node process fields the signing library reads while it loads.',
+      'The page starts again. The Ledger process shim is applied only in the browser bundle, not in the Node server.',
     de_DE:
-      'Ledger verbinden stürzt nicht mehr mit „process is not defined“ ab. Der Browser-Build setzt die Node-Felder, die die Signierbibliothek beim Laden liest.',
+      'Die Seite startet wieder. Der Ledger-Process-Shim gilt nur für den Browser, nicht für den Node-Server.',
     es_ES:
-      'Conectar un Ledger ya no falla con “process is not defined”. La compilación del navegador aporta los campos de process que la biblioteca de firma lee al cargarse.',
+      'La página vuelve a arrancar. El reemplazo de process para Ledger solo se aplica al bundle del navegador, no al servidor Node.',
     pl_PL:
-      'Łączenie z Ledgerem nie kończy się już błędem „process is not defined”. Build przeglądarki podaje pola process, które biblioteka podpisu czyta przy starcie.',
+      'Strona znowu się uruchamia. Podmiana process dla Ledgera dotyczy tylko paczki przeglądarki, nie serwera Node.',
     fr_FR:
-      'Connecter un Ledger ne plante plus avec « process is not defined ». Le build navigateur fournit les champs process que la bibliothèque de signature lit au chargement.',
+      'La page démarre à nouveau. Le correctif process pour Ledger ne s’applique qu’au bundle navigateur, pas au serveur Node.',
   },
   migrations: {
     up: async () => {},
