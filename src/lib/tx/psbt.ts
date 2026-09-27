@@ -4,6 +4,23 @@ const DUST_SATS = 546;
 const RBF_SEQUENCE = 0xfffffffd;
 const FINAL_SEQUENCE = 0xffffffff;
 
+/** nSequence and nLockTime a signer needs in order to see the chosen miniscript branch. */
+export function sequenceAndLocktime(opts: {
+  older?: number;
+  after?: number;
+  tip?: number;
+  rbf?: boolean;
+}): { sequence: number; locktime: number } {
+  const older = Math.max(0, Math.floor(Number(opts.older) || 0));
+  const after = Math.max(0, Math.floor(Number(opts.after) || 0));
+  const tip = Math.max(0, Math.floor(Number(opts.tip) || 0));
+  const sequence =
+    older > 0 ? Math.min(older, 0xffff) : opts.rbf === false ? FINAL_SEQUENCE : RBF_SEQUENCE;
+  if (sequence === FINAL_SEQUENCE) return { sequence, locktime: 0 };
+  const locktime = after > 0 ? Math.max(after, tip) : tip;
+  return { sequence, locktime };
+}
+
 export type SpendCoin = {
   txid: string;
   vout: number;
@@ -17,6 +34,8 @@ export type SpendPlan = {
   feeSats: number;
   inputSats: number;
   rbf: boolean;
+  sequence: number;
+  locktime: number;
   dustChange?: boolean;
 };
 
@@ -77,6 +96,9 @@ export function planSpend(opts: {
   changeAddress?: string;
   sendAll?: boolean;
   rbf?: boolean;
+  older?: number;
+  after?: number;
+  tip?: number;
 }): SpendPlan {
   const inputs = opts.coins.filter((c) => c.txid && c.address && c.amountBtc > 0);
   if (!inputs.length) throw new Error("tx.needCoins");
@@ -106,7 +128,7 @@ export function planSpend(opts: {
     scriptPubKeyFromAddress(change);
     outputs.push({ address: change, sats: changeSats });
   }
-  return { inputs, outputs, feeSats: fee, inputSats, rbf: opts.rbf !== false, dustChange };
+  return finishPlan({ inputs, outputs, feeSats: fee, inputSats, rbf: opts.rbf !== false, dustChange }, opts);
 }
 
 export function planPayments(opts: {
@@ -115,6 +137,9 @@ export function planPayments(opts: {
   feeSats: number;
   changeAddress?: string;
   rbf?: boolean;
+  older?: number;
+  after?: number;
+  tip?: number;
 }): SpendPlan {
   const inputs = opts.coins.filter((c) => c.txid && c.address && c.amountBtc > 0);
   if (!inputs.length) throw new Error("tx.needCoins");
@@ -142,7 +167,15 @@ export function planPayments(opts: {
     scriptPubKeyFromAddress(change);
     outputs.push({ address: change, sats: changeSats });
   }
-  return { inputs, outputs, feeSats: fee, inputSats, rbf: opts.rbf !== false, dustChange };
+  return finishPlan({ inputs, outputs, feeSats: fee, inputSats, rbf: opts.rbf !== false, dustChange }, opts);
+}
+
+function finishPlan(
+  plan: Omit<SpendPlan, "sequence" | "locktime">,
+  opts: { older?: number; after?: number; tip?: number; rbf?: boolean },
+): SpendPlan {
+  const locks = sequenceAndLocktime(opts);
+  return { ...plan, sequence: locks.sequence, locktime: locks.locktime, rbf: locks.sequence !== FINAL_SEQUENCE };
 }
 
 export function addressFromScan(text: string): string {
@@ -171,7 +204,7 @@ export function buildPsbt(plan: SpendPlan): string {
 }
 
 function unsignedTx(plan: SpendPlan): Uint8Array {
-  const seq = plan.rbf ? RBF_SEQUENCE : FINAL_SEQUENCE;
+  const seq = plan.sequence;
   const body: Uint8Array[] = [];
   body.push(u32(2));
   body.push(compact(plan.inputs.length));
@@ -190,7 +223,7 @@ function unsignedTx(plan: SpendPlan): Uint8Array {
     body.push(compact(script.length));
     body.push(script);
   }
-  body.push(u32(0));
+  body.push(u32(plan.locktime));
   return concat(body);
 }
 

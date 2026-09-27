@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { btcToSats, buildPsbt, estimateVbytes, extractSignedTx, feeFromRate, inspectSignatures, planPayments, planSpend, satsToDecimal } from "./psbt.ts";
+import { btcToSats, buildPsbt, estimateVbytes, extractSignedTx, feeFromRate, inspectSignatures, planPayments, planSpend, satsToDecimal, sequenceAndLocktime } from "./psbt.ts";
 
 const ADDR = "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t4";
 const TXID = "11".repeat(32);
@@ -94,5 +94,35 @@ describe("unsigned psbt", () => {
       sendAll: true,
     });
     assert.throws(() => extractSignedTx(buildPsbt(plan)), /tx\.err\.unsigned/);
+  });
+
+  it("writes older() into nSequence and the tip into nLockTime", () => {
+    assert.deepEqual(sequenceAndLocktime({ older: 65534, tip: 968879 }), {
+      sequence: 65534,
+      locktime: 968879,
+    });
+    assert.deepEqual(sequenceAndLocktime({ after: 800000, tip: 968879 }), {
+      sequence: 0xfffffffd,
+      locktime: 968879,
+    });
+    assert.deepEqual(sequenceAndLocktime({ after: 1_200_000, tip: 968879 }), {
+      sequence: 0xfffffffd,
+      locktime: 1_200_000,
+    });
+    const plan = planPayments({
+      coins: [{ txid: TXID, vout: 0, amountBtc: 0.002, address: ADDR }],
+      payments: [{ address: ADDR, sats: 100_000 }],
+      feeSats: 2_000,
+      changeAddress: ADDR,
+      older: 65534,
+      tip: 968879,
+    });
+    assert.equal(plan.sequence, 65534);
+    assert.equal(plan.locktime, 968879);
+    const raw = Buffer.from(buildPsbt(plan), "base64");
+    const txLen = raw[7]!;
+    const tx = raw.subarray(8, 8 + txLen);
+    assert.equal(tx.subarray(42, 46).readUInt32LE(0), 65534);
+    assert.equal(tx.subarray(tx.length - 4).readUInt32LE(0), 968879);
   });
 });

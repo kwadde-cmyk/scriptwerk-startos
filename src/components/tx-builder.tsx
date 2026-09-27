@@ -125,6 +125,7 @@ function SendPane({ pathIndex }: { pathIndex: number | null }) {
     setShowQr(false);
     setDustWarn(false);
     try {
+      const locks = pathLock(stages, pathIndex ?? 0);
       const plan = planPayments({
         coins: selected.map(asCoin),
         payments: applyFee(
@@ -134,6 +135,9 @@ function SendPane({ pathIndex }: { pathIndex: number | null }) {
         ),
         feeSats,
         changeAddress: changeValue,
+        tip,
+        older: locks.older,
+        after: locks.after,
       });
       setDustWarn(Boolean(plan.dustChange));
       setPsbt(buildPsbt(plan));
@@ -356,10 +360,14 @@ function RecoveryPane({ pathIndex }: { pathIndex: number | null }) {
         const size = spendSize(stages, reuse, pathIndex ?? 0);
         const vb = estimateVbytes({ inputs: 1, outputs: [row.dest], sigs: size.sigs, keys: size.keys });
         const feeSats = feeFromRate(Number(rate.replace(",", ".")), vb);
+        const locks = pathLock(stages, pathIndex ?? 0);
         const plan = planPayments({
           coins: [asCoin(row.coin)],
           payments: [{ address: row.dest, sats: btcToSats(row.coin.amount) - feeSats }],
           feeSats,
+          tip,
+          older: locks.older,
+          after: locks.after,
         });
         if (plan.outputs.length !== 1) throw new Error("tx.err.reuse");
         next.push({ id: `${row.coin.txid}:${row.coin.vout}`, psbt: buildPsbt(plan) });
@@ -629,6 +637,12 @@ function coinPath(
   if (pathIndex == null) return null;
   const status = evaluateCoinStatus({ height: coin.height, tip, stages, reuse, root });
   return status.paths[pathIndex] ?? null;
+}
+
+function pathLock(stages: Stage[], index: number): { older: number; after: number } {
+  const slot = describeStageSlots(stages, false)[index];
+  if (!slot || slot.delay <= 0) return { older: 0, after: 0 };
+  return slot.lock === "after" ? { older: 0, after: slot.delay } : { older: slot.delay, after: 0 };
 }
 
 function spendSize(stages: Stage[], reuse: boolean, index = 0): { sigs: number; keys: number } {
