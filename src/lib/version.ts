@@ -1,1 +1,1 @@
-export const SCRIPTWERK_VERSION = "0.1.44";
+export const SCRIPTWERK_VERSION = "0.1.45";

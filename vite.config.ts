@@ -174,8 +174,25 @@ export default defineConfig(({ command, isPreview }) => ({
     allowedHosts: true,
   },
   resolve: { tsconfigPaths: true },
+  // readable-stream (pulled in by ledger-bitcoin) reads process.* at import.
+  define: {
+    "process.browser": "true",
+    "process.version": JSON.stringify("v20.0.0"),
+    "process.stdout": "undefined",
+    "process.stderr": "undefined",
+    "process.nextTick": "((fn)=>queueMicrotask(fn))",
+  },
   optimizeDeps: {
     exclude: ["bitbox-api"],
+    esbuildOptions: {
+      define: {
+        "process.browser": "true",
+        "process.version": JSON.stringify("v20.0.0"),
+        "process.stdout": "undefined",
+        "process.stderr": "undefined",
+        "process.nextTick": "((fn)=>queueMicrotask(fn))",
+      },
+    },
   },
   ssr: {
     external: ["bitbox-api", "@ledgerhq/hw-transport-webhid", "ledger-bitcoin"],
