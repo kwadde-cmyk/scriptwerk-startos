@@ -359,6 +359,21 @@ export function attachElectrumProxy(middlewares) {
         return;
       }
       const out = await lookupElectrumUtxos(parsed.addresses, parsed.server);
+      if (out.status === 200 && Array.isArray(parsed.spans)) {
+        const body = JSON.parse(out.body);
+        const flatUsed = Array.isArray(body.result?.used) ? body.result.used : [];
+        const addrs = Array.isArray(parsed.addresses) ? parsed.addresses.map(String) : [];
+        let off = 0;
+        body.result.groups = [];
+        body.result.used = [];
+        for (const n of parsed.spans) {
+          const len = Math.max(0, Math.floor(Number(n) || 0));
+          body.result.groups.push(addrs.slice(off, off + len));
+          body.result.used.push(flatUsed.slice(off, off + len).map(Boolean));
+          off += len;
+        }
+        out.body = JSON.stringify(body);
+      }
       res.statusCode = out.status;
       res.setHeader("content-type", "application/json");
       res.end(out.body);

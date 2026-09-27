@@ -459,18 +459,47 @@ export async function deriveAddressRange(
   return raw.map(String);
 }
 
+async function coreAddresses(
+  config: BitcoindConfig,
+  descriptor: string,
+  begin: number,
+  end: number,
+): Promise<string[] | null> {
+  if (!config.url.trim()) return null;
+  const rewritten = rewriteSortedMultiForCore(descriptor);
+  const attempts = rewritten === descriptor ? [descriptor] : [descriptor, rewritten];
+  for (const desc of attempts) {
+    try {
+      const list = await deriveAddressRange(config, desc, begin, end);
+      if (list.length === end - begin + 1 && list.every((address) => address.trim())) return list;
+    } catch {
+      /* the other descriptor form may be the one Core accepts */
+    }
+  }
+  return null;
+}
+
 async function electrumLookup(
-  groups: { desc: string; from: number; to: number }[],
+  groups: { desc: string; from: number; to: number; addresses?: string[] }[],
   server: string,
 ): Promise<UtxoScanResult & { groups: string[][]; used: boolean[][]; more: boolean }> {
+  const ready = groups.every((g) => g.addresses && g.addresses.length > 0);
   const res = await fetch("/electrum", {
     method: "POST",
     headers: { "content-type": "application/json" },
     cache: "no-store",
-    body: JSON.stringify({
-      derive: groups.map((g) => ({ desc: g.desc, from: g.from, to: g.to })),
-      server,
-    }),
+    body: JSON.stringify(
+      ready
+        ? {
+            addresses: groups.flatMap((g) => g.addresses ?? []),
+            spans: groups.map((g) => g.addresses?.length ?? 0),
+            server,
+          }
+        : {
+            derive: groups.map((g) => ({ desc: g.desc, from: g.from, to: g.to })),
+            server,
+          },
+    ),
   });
   if (res.status === 404) throw new Error("hw.utxo.needElectrum");
   const body = (await res.json().catch(() => null)) as {
@@ -533,17 +562,22 @@ export async function scanDescriptorUtxos(
     opts.from ?? 0,
   );
   if (!objects.length) throw new Error("hw.utxo.derive");
-  const res = await electrumLookup(
-    objects.map((o) => ({ desc: o.desc, from: o.range[0], to: o.range[1] })),
-    opts.electrum ?? "",
-  );
-  let coreMatch: boolean | undefined;
-  for (let i = 0; i < objects.length; i++) {
-    const o = objects[i]!;
-    const list = res.groups[i] ?? [];
-    const agreed = await agreeWithCore(config, o.desc, o.range[0], o.range[1], list);
-    if (agreed === false) coreMatch = false;
-    else if (agreed === true && coreMatch !== false) coreMatch = true;
+  const ranged: { desc: string; from: number; to: number; addresses?: string[] }[] = [];
+  for (const o of objects) {
+    const addresses = await coreAddresses(config, o.desc, o.range[0], o.range[1]);
+    ranged.push({ desc: o.desc, from: o.range[0], to: o.range[1], addresses: addresses ?? undefined });
+  }
+  const fromCore = ranged.every((g) => g.addresses?.length);
+  const res = await electrumLookup(ranged, opts.electrum ?? "");
+  let coreMatch: boolean | undefined = fromCore ? true : undefined;
+  if (!fromCore) {
+    for (let i = 0; i < objects.length; i++) {
+      const o = objects[i]!;
+      const list = res.groups[i] ?? [];
+      const agreed = await agreeWithCore(config, o.desc, o.range[0], o.range[1], list);
+      if (agreed === false) coreMatch = false;
+      else if (agreed === true && coreMatch !== false) coreMatch = true;
+    }
   }
   const last = objects[0]?.range[1] ?? -1;
   return { ...res, scanned: last + 1, coreMatch, more: res.more };
@@ -567,19 +601,25 @@ export async function scanWatchWallet(
     kind: b.kind,
     desc: descriptorForBranch(descriptor, b.change),
   }));
-  const res = await electrumLookup(
-    specs.map((s) => ({ desc: s.desc, from, to: end })),
-    opts.electrum ?? "",
-  );
+  const ranged: { desc: string; from: number; to: number; addresses?: string[] }[] = [];
+  for (const spec of specs) {
+    const addresses = await coreAddresses(config, spec.desc, from, end);
+    ranged.push({ desc: spec.desc, from, to: end, addresses: addresses ?? undefined });
+  }
+  const fromCore = ranged.every((g) => g.addresses?.length);
+  const res = await electrumLookup(ranged, opts.electrum ?? "");
   const labeled: { address: string; kind: AddressKind; index: number }[] = [];
   specs.forEach((spec, i) => {
-    (res.groups[i] ?? []).forEach((address, n) => labeled.push({ address, kind: spec.kind, index: from + n }));
+    const list = fromCore ? ranged[i]!.addresses ?? [] : res.groups[i] ?? [];
+    list.forEach((address, n) => labeled.push({ address, kind: spec.kind, index: from + n }));
   });
-  let coreMatch: boolean | undefined;
-  for (let i = 0; i < specs.length; i++) {
-    const agreed = await agreeWithCore(config, specs[i]!.desc, from, end, res.groups[i] ?? []);
-    if (agreed === false) coreMatch = false;
-    else if (agreed === true && coreMatch !== false) coreMatch = true;
+  let coreMatch: boolean | undefined = fromCore ? true : undefined;
+  if (!fromCore) {
+    for (let i = 0; i < specs.length; i++) {
+      const agreed = await agreeWithCore(config, specs[i]!.desc, from, end, res.groups[i] ?? []);
+      if (agreed === false) coreMatch = false;
+      else if (agreed === true && coreMatch !== false) coreMatch = true;
+    }
   }
   return {
     ...buildWatchSnapshot({
