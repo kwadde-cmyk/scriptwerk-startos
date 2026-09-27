@@ -205,7 +205,14 @@ export async function lookupElectrumDerived(groups, serverFromClient) {
   const looked = await lookupElectrumUtxos(addresses, serverFromClient);
   if (looked.status !== 200) return looked;
   const parsed = JSON.parse(looked.body);
+  const flat = Array.isArray(parsed.result?.used) ? parsed.result.used : [];
+  let off = 0;
   parsed.result.groups = lists;
+  parsed.result.used = lists.map((list) => {
+    const slice = flat.slice(off, off + list.length).map(Boolean);
+    off += list.length;
+    return slice;
+  });
   return { status: 200, body: JSON.stringify(parsed) };
 }
 
@@ -221,7 +228,7 @@ export async function lookupElectrumUtxos(addresses, serverFromClient) {
   }
   const addrs = (Array.isArray(addresses) ? addresses : []).map(String).filter(Boolean).slice(0, 200);
   if (!addrs.length) {
-    return { status: 400, body: JSON.stringify({ error: { message: "hw.utxo.none" } }) };
+    return { status: 400, body: JSON.stringify({ error: { message: "hw.utxo.derive" } }) };
   }
   const hashes = [];
   for (const a of addrs) hashes.push({ address: a, scripthash: await scripthash(a) });
@@ -231,14 +238,19 @@ export async function lookupElectrumUtxos(addresses, serverFromClient) {
       method: "blockchain.scripthash.listunspent",
       params: [h.scripthash],
     })),
+    ...hashes.map((h) => ({
+      method: "blockchain.scripthash.get_history",
+      params: [h.scripthash],
+    })),
   ];
   const rows = await electrumBatch(target, calls);
   const head = rows[0];
   const chainHeight = Number(head && typeof head === "object" ? head.height : head) || 0;
   const unspents = [];
   let totalSats = 0;
-  hashes.forEach((h, i) => {
+  const used = hashes.map((h, i) => {
     const list = Array.isArray(rows[i + 1]) ? rows[i + 1] : [];
+    const hist = rows[1 + hashes.length + i];
     for (const u of list) {
       const sats = Number(u.value) || 0;
       totalSats += sats;
@@ -251,10 +263,11 @@ export async function lookupElectrumUtxos(addresses, serverFromClient) {
         desc: "",
       });
     }
+    return list.length > 0 || (Array.isArray(hist) && hist.length > 0);
   });
   return {
     status: 200,
-    body: JSON.stringify({ result: { unspents, total: totalSats / 1e8, height: chainHeight } }),
+    body: JSON.stringify({ result: { unspents, total: totalSats / 1e8, height: chainHeight, used } }),
   };
 }
 

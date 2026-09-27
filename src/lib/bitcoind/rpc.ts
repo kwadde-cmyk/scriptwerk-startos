@@ -462,7 +462,7 @@ export async function deriveAddressRange(
 async function electrumLookup(
   groups: { desc: string; from: number; to: number }[],
   server: string,
-): Promise<UtxoScanResult & { groups: string[][] }> {
+): Promise<UtxoScanResult & { groups: string[][]; used: boolean[][]; more: boolean }> {
   const res = await fetch("/electrum", {
     method: "POST",
     headers: { "content-type": "application/json" },
@@ -474,7 +474,7 @@ async function electrumLookup(
   });
   if (res.status === 404) throw new Error("hw.utxo.needElectrum");
   const body = (await res.json().catch(() => null)) as {
-    result?: { unspents?: UtxoScanResult["unspents"]; total?: number; height?: number; groups?: string[][] };
+    result?: { unspents?: UtxoScanResult["unspents"]; total?: number; height?: number; groups?: string[][]; used?: boolean[][] };
     error?: { message?: string };
   } | null;
   if (!body) throw new Error("hw.utxo.bad");
@@ -482,11 +482,14 @@ async function electrumLookup(
   if (res.status >= 400) throw new Error(body.error?.message || "hw.utxo.needElectrum");
   const unspents = Array.isArray(body.result?.unspents) ? body.result.unspents : [];
   const lists = Array.isArray(body.result?.groups) ? body.result.groups : [];
+  const used = Array.isArray(body.result?.used) ? body.result.used : [];
   return {
     height: Number(body.result?.height) || 0,
     total: Number(body.result?.total) || 0,
     unspents,
     groups: lists.map((list) => (Array.isArray(list) ? list.map(String) : [])),
+    used: used.map((list) => (Array.isArray(list) ? list.map(Boolean) : [])),
+    more: used.some((list) => Array.isArray(list) && list.some(Boolean)) || unspents.length > 0,
   };
 }
 
@@ -521,8 +524,15 @@ export async function scanDescriptorUtxos(
   descriptor: string,
   opts: { count: number; receive: boolean; change: boolean; electrum?: string; from?: number },
 ): Promise<UtxoScanResult> {
-  const objects = utxoScanObjects(descriptor, opts.count, opts.receive, opts.change, opts.from ?? 0);
-  if (!objects.length) throw new Error("hw.utxo.none");
+  const neither = opts.receive === false && opts.change === false;
+  const objects = utxoScanObjects(
+    descriptor,
+    opts.count,
+    neither || opts.receive !== false,
+    neither || opts.change !== false,
+    opts.from ?? 0,
+  );
+  if (!objects.length) throw new Error("hw.utxo.derive");
   const res = await electrumLookup(
     objects.map((o) => ({ desc: o.desc, from: o.range[0], to: o.range[1] })),
     opts.electrum ?? "",
@@ -536,7 +546,7 @@ export async function scanDescriptorUtxos(
     else if (agreed === true && coreMatch !== false) coreMatch = true;
   }
   const last = objects[0]?.range[1] ?? -1;
-  return { ...res, scanned: last + 1, coreMatch };
+  return { ...res, scanned: last + 1, coreMatch, more: res.more };
 }
 
 export async function scanWatchWallet(
@@ -548,9 +558,11 @@ export async function scanWatchWallet(
   const n = clampUtxoCount(opts.count);
   const end = from + n - 1;
   const branches: { kind: AddressKind; change: 0 | 1 }[] = [];
-  if (opts.receive) branches.push({ kind: "receive", change: 0 });
-  if (opts.change) branches.push({ kind: "change", change: 1 });
-  if (!branches.length) throw new Error("hw.utxo.none");
+  if (opts.receive !== false) branches.push({ kind: "receive", change: 0 });
+  if (opts.change !== false) branches.push({ kind: "change", change: 1 });
+  if (!branches.length) {
+    branches.push({ kind: "receive", change: 0 }, { kind: "change", change: 1 });
+  }
   const specs = branches.map((b) => ({
     kind: b.kind,
     desc: descriptorForBranch(descriptor, b.change),
@@ -569,14 +581,17 @@ export async function scanWatchWallet(
     if (agreed === false) coreMatch = false;
     else if (agreed === true && coreMatch !== false) coreMatch = true;
   }
-  return buildWatchSnapshot({
-    height: res.height,
-    addresses: labeled,
-    unspents: res.unspents,
-    scanned: end + 1,
-    checksum: opts.checksum ?? checksumOf(descriptor),
-    coreMatch,
-  });
+  return {
+    ...buildWatchSnapshot({
+      height: res.height,
+      addresses: labeled,
+      unspents: res.unspents,
+      scanned: end + 1,
+      checksum: opts.checksum ?? checksumOf(descriptor),
+      coreMatch,
+    }),
+    more: res.more,
+  };
 }
 
 export async function broadcastRawTx(config: BitcoindConfig, hex: string): Promise<string> {
