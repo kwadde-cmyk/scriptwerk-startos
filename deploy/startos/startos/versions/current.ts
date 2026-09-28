@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.52:0',
+  version: '0.1.53:0',
   releaseNotes: {
     en_US:
-      'A Ledger or BitBox signature is copied into the signed transaction. If another key already signed the same transaction, both signatures are kept together.',
+      'The transaction tab is three steps: build, finalize, and send. Finalize exports or imports a PSBT as a file or QR. USB signing tells a Ledger from a BitBox.',
     de_DE:
-      'Eine Signatur vom Ledger oder der BitBox landet in der signierten Transaktion. Hat ein anderer Key dieselbe Transaktion schon signiert, bleiben beide Signaturen zusammen.',
+      'Der Transaktions-Tab hat drei Schritte: bauen, finalisieren, abschicken. Finalisieren exportiert oder importiert eine PSBT als Datei oder QR. USB erkennt Ledger und BitBox selbst.',
     es_ES:
-      'Una firma de Ledger o BitBox pasa a la transacción firmada. Si otra key ya firmó la misma transacción, se conservan las dos firmas juntas.',
+      'La pestaña de transacción tiene tres pasos: construir, finalizar y enviar. Finalizar exporta o importa una PSBT como archivo o QR. El USB distingue Ledger y BitBox.',
     pl_PL:
-      'Podpis z Ledgera lub BitBoxa trafia do podpisanej transakcji. Jeśli inny klucz podpisał już tę samą transakcję, oba podpisy zostają razem.',
+      'Karta transakcji ma trzy kroki: budowa, finalizacja i wysyłka. Finalizacja eksportuje lub importuje PSBT jako plik albo QR. USB samo rozpoznaje Ledger i BitBox.',
     fr_FR:
-      'Une signature Ledger ou BitBox arrive dans la transaction signée. Si une autre clé a déjà signé la même transaction, les deux signatures restent ensemble.',
+      'L’onglet transaction a trois étapes : construire, finaliser, envoyer. Finaliser exporte ou importe une PSBT en fichier ou QR. L’USB distingue Ledger et BitBox.',
   },
   migrations: {
     up: async () => {},
