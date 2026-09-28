@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { btcToSats, buildPsbt, estimateVbytes, extractSignedTx, feeFromRate, inspectSignatures, planPayments, planSpend, satsToDecimal, sequenceAndLocktime, withPartialSigs, addedSignaturePubkeys } from "./psbt.ts";
+import { btcToSats, buildPsbt, estimateVbytes, extractSignedTx, feeFromRate, inspectSignatures, mergePsbtSignatures, planPayments, planSpend, samePsbtTransaction, satsToDecimal, sequenceAndLocktime, withPartialSigs, addedSignaturePubkeys } from "./psbt.ts";
 import { signatureReport } from "./sigs.ts";
 import { createQrVideo } from "./qr-video.ts";
 import { emptyKey } from "../miniscript/keys.ts";
@@ -267,6 +267,35 @@ describe("unsigned psbt", () => {
     assert.deepEqual(half.inputs[0]!.missing, ["DIY Love"]);
     assert.equal(half.inputs[0]!.haveOnPath, 1);
     assert.equal(half.inputs[0]!.pathReady, false);
+  });
+
+  it("merges partial signatures of the same transaction", () => {
+    const plan = planPayments({
+      coins: [{ txid: TXID, vout: 0, amountBtc: 0.002, address: ADDR }],
+      payments: [{ address: ADDR, sats: 100_000 }],
+      feeSats: 2_000,
+      changeAddress: ADDR,
+    });
+    const psbt = buildPsbt(plan, {
+      inputs: [{ address: ADDR, witnessScript: "51", derivations: [] }],
+    });
+    const pubA = "02" + "aa".repeat(32);
+    const pubB = "03" + "bb".repeat(32);
+    const ledger = withPartialSigs(psbt, [{ input: 0, pubkey: Buffer.from(pubA, "hex"), signature: Buffer.from("11", "hex") }]);
+    const diy = withPartialSigs(psbt, [{ input: 0, pubkey: Buffer.from(pubB, "hex"), signature: Buffer.from("22", "hex") }]);
+    const merged = mergePsbtSignatures(diy, ledger);
+    assert.equal(samePsbtTransaction(diy, ledger), true);
+    assert.deepEqual(inspectSignatures(merged).inputs[0]!.pubkeys.sort(), [pubA, pubB].sort());
+    assert.equal(mergePsbtSignatures("", ledger), ledger);
+    assert.equal(mergePsbtSignatures(diy, ""), diy);
+    const other = buildPsbt(planPayments({
+      coins: [{ txid: TXID, vout: 1, amountBtc: 0.002, address: ADDR }],
+      payments: [{ address: ADDR, sats: 50_000 }],
+      feeSats: 1_000,
+      changeAddress: ADDR,
+    }), { inputs: [{ address: ADDR, witnessScript: "51", derivations: [] }] });
+    assert.equal(samePsbtTransaction(ledger, other), false);
+    assert.equal(mergePsbtSignatures(diy, other), other);
   });
 });
 

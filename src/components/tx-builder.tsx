@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState } from "react";
 import { QrCode, Trash2 } from "lucide-react";
-import { addressFromScan, addedSignaturePubkeys, btcToSats, buildPsbt, estimateVbytes, expandSpots, extractSignedTx, feeFromRate, planPayments, satsFromDecimal, satsToDecimal, type ScriptSpot } from "@/lib/tx/psbt";
+import { addressFromScan, addedSignaturePubkeys, btcToSats, buildPsbt, estimateVbytes, expandSpots, extractSignedTx, feeFromRate, mergePsbtSignatures, planPayments, samePsbtTransaction, satsFromDecimal, satsToDecimal, type ScriptSpot } from "@/lib/tx/psbt";
 import { signatureReport } from "@/lib/tx/sigs";
 import { formatAmount, type UtxoHit, type WatchAddr } from "@/lib/hw/address-check";
 import { evaluateCoinStatus } from "@/lib/miniscript/coin-status";
@@ -40,7 +40,26 @@ export function TxTab() {
   const slots = useMemo(() => describeStageSlots(stages, reuse), [stages, reuse]);
   const [mode, setMode] = useState<"send" | "recovery">("send");
   const [path, setPath] = useState<number | null>(null);
+  const [signed, setSigned] = useState("");
+  const signedRef = useRef("");
+  const syncRef = useRef<(merged: string) => void>(() => {});
   const pathIndex = slots.length <= 1 ? 0 : path;
+
+  function takeSignature(next: string): { merged: string; gained: boolean } {
+    const prev = signedRef.current;
+    const merged = mergePsbtSignatures(prev, next);
+    signedRef.current = merged;
+    setSigned(merged);
+    syncRef.current(merged);
+    let gained = false;
+    try {
+      gained = addedSignaturePubkeys(prev, merged).length > 0;
+    } catch {
+      gained = merged !== prev;
+    }
+    return { merged, gained };
+  }
+
   return (
     <div className="space-y-5">
       {slots.length > 1 ? (
@@ -64,13 +83,25 @@ export function TxTab() {
           {t("tx.recovery")}
         </Button>
       </div>
-      {mode === "send" ? <SendPane pathIndex={pathIndex} /> : <RecoveryPane pathIndex={pathIndex} />}
-      <BroadcastPane pathIndex={pathIndex} />
+      {mode === "send" ? (
+        <SendPane pathIndex={pathIndex} syncRef={syncRef} takeSignature={takeSignature} />
+      ) : (
+        <RecoveryPane pathIndex={pathIndex} syncRef={syncRef} takeSignature={takeSignature} />
+      )}
+      <BroadcastPane pathIndex={pathIndex} signed={signed} takeSignature={takeSignature} />
     </div>
   );
 }
 
-function SendPane({ pathIndex }: { pathIndex: number | null }) {
+function SendPane({
+  pathIndex,
+  syncRef,
+  takeSignature,
+}: {
+  pathIndex: number | null;
+  syncRef: { current: (merged: string) => void };
+  takeSignature: (next: string) => { merged: string; gained: boolean };
+}) {
   const { t, locale } = useT();
   const nloc = numberLocale(locale);
   const unit = useStudio((s) => s.amountUnit);
@@ -96,6 +127,9 @@ function SendPane({ pathIndex }: { pathIndex: number | null }) {
   const [feeOnChange, setFeeOnChange] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  syncRef.current = (merged) => {
+    setPsbt((cur) => (cur && samePsbtTransaction(cur, merged) ? mergePsbtSignatures(cur, merged) : cur));
+  };
 
   const selected = coins.filter((c) => picked.includes(`${c.txid}:${c.vout}`));
   const sumBtc = selected.reduce((s, c) => s + c.amount, 0);
@@ -253,10 +287,10 @@ function SendPane({ pathIndex }: { pathIndex: number | null }) {
       <div className="flex flex-wrap gap-2">
         <Button type="button" variant="outline" disabled={!psbt} onClick={() => downloadPsbt(psbt, "scriptwerk-send.psbt")}>{t("tx.exportFile")}</Button>
         <Button type="button" variant="outline" disabled={!psbt} onClick={() => setShowQr((v) => !v)}>{t("tx.exportQr")}</Button>
-        <Button type="button" variant="outline" disabled={!psbt || !!busy} onClick={() => void sign(psbt, "ledger", setBusy, setPsbt, setError, locale).then((next) => next && noteSigned(next, pathIndex))}>
+        <Button type="button" variant="outline" disabled={!psbt || !!busy} onClick={() => void sign(psbt, "ledger", setBusy, setPsbt, setError, locale).then((next) => next && deliver(next, setPsbt, takeSignature, pathIndex, setError, locale))}>
           {busy === "ledger" ? t("tx.signing") : t("tx.ledger")}
         </Button>
-        <Button type="button" variant="outline" disabled={!psbt || !!busy} onClick={() => void sign(psbt, "bitbox", setBusy, setPsbt, setError, locale).then((next) => next && noteSigned(next, pathIndex))}>
+        <Button type="button" variant="outline" disabled={!psbt || !!busy} onClick={() => void sign(psbt, "bitbox", setBusy, setPsbt, setError, locale).then((next) => next && deliver(next, setPsbt, takeSignature, pathIndex, setError, locale))}>
           {busy === "bitbox" ? t("tx.signing") : t("tx.bitbox")}
         </Button>
       </div>
@@ -337,7 +371,15 @@ function SendPane({ pathIndex }: { pathIndex: number | null }) {
   );
 }
 
-function RecoveryPane({ pathIndex }: { pathIndex: number | null }) {
+function RecoveryPane({
+  pathIndex,
+  syncRef,
+  takeSignature,
+}: {
+  pathIndex: number | null;
+  syncRef: { current: (merged: string) => void };
+  takeSignature: (next: string) => { merged: string; gained: boolean };
+}) {
   const { t, locale } = useT();
   const nloc = numberLocale(locale);
   const unit = useStudio((s) => s.amountUnit);
@@ -352,6 +394,11 @@ function RecoveryPane({ pathIndex }: { pathIndex: number | null }) {
   const [built, setBuilt] = useState<{ id: string; psbt: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  syncRef.current = (merged) => {
+    setBuilt((cur) =>
+      cur.map((b) => (b.psbt && samePsbtTransaction(b.psbt, merged) ? { ...b, psbt: mergePsbtSignatures(b.psbt, merged) } : b)),
+    );
+  };
 
   const rows = useMemo(() => {
     const coins = (snap?.unspents ?? []).filter((c) => {
@@ -427,10 +474,10 @@ function RecoveryPane({ pathIndex }: { pathIndex: number | null }) {
               </p>
               <div className="flex flex-wrap items-center gap-2">
                 {psbt ? <PsbtExport value={psbt} name={`scriptwerk-${id.replace(":", "-")}.psbt`} /> : <span className="text-2xs text-fg-muted">{t("tx.buildEach")}</span>}
-                <Button type="button" variant="outline" disabled={!psbt || !!busy} onClick={() => void sign(psbt, "ledger", setBusy, (next) => setBuilt((cur) => cur.map((b) => (b.id === id ? { ...b, psbt: next } : b))), setError, locale).then((next) => next && noteSigned(next, pathIndex))}>
+                <Button type="button" variant="outline" disabled={!psbt || !!busy} onClick={() => void sign(psbt, "ledger", setBusy, (next) => setBuilt((cur) => cur.map((b) => (b.id === id ? { ...b, psbt: next } : b))), setError, locale).then((next) => next && deliver(next, (merged) => setBuilt((cur) => cur.map((b) => (b.id === id ? { ...b, psbt: merged } : b))), takeSignature, pathIndex, setError, locale))}>
                   {t("tx.ledger")}
                 </Button>
-                <Button type="button" variant="outline" disabled={!psbt || !!busy} onClick={() => void sign(psbt, "bitbox", setBusy, (next) => setBuilt((cur) => cur.map((b) => (b.id === id ? { ...b, psbt: next } : b))), setError, locale).then((next) => next && noteSigned(next, pathIndex))}>
+                <Button type="button" variant="outline" disabled={!psbt || !!busy} onClick={() => void sign(psbt, "bitbox", setBusy, (next) => setBuilt((cur) => cur.map((b) => (b.id === id ? { ...b, psbt: next } : b))), setError, locale).then((next) => next && deliver(next, (merged) => setBuilt((cur) => cur.map((b) => (b.id === id ? { ...b, psbt: merged } : b))), takeSignature, pathIndex, setError, locale))}>
                   {t("tx.bitbox")}
                 </Button>
               </div>
@@ -445,11 +492,18 @@ function RecoveryPane({ pathIndex }: { pathIndex: number | null }) {
   );
 }
 
-function BroadcastPane({ pathIndex }: { pathIndex: number | null }) {
+function BroadcastPane({
+  pathIndex,
+  signed,
+  takeSignature,
+}: {
+  pathIndex: number | null;
+  signed: string;
+  takeSignature: (next: string) => { merged: string; gained: boolean };
+}) {
   const { t, locale } = useT();
   const status = useBitcoind((s) => s.status);
   const demo = useBitcoind((s) => s.demo);
-  const [signed, setSigned] = useState("");
   const [importQr, setImportQr] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const [txid, setTxid] = useState("");
@@ -487,7 +541,7 @@ function BroadcastPane({ pathIndex }: { pathIndex: number | null }) {
           onChange={(e) => {
             const file = e.target.files?.[0];
             e.target.value = "";
-            if (file) void readPsbtFile(file).then(setSigned);
+            if (file) void readPsbtFile(file).then(takeSignature);
           }}
         />
         <Button type="button" variant="outline" onClick={() => setImportQr(true)}>{t("tx.exportQr")}</Button>
@@ -504,7 +558,7 @@ function BroadcastPane({ pathIndex }: { pathIndex: number | null }) {
           <QrScanner
             video
             onRead={(text) => {
-              setSigned(text.trim());
+              takeSignature(text.trim());
               setImportQr(false);
             }}
           />
@@ -715,15 +769,31 @@ async function sign(
     if (!session || session.demo) throw new Error("tx.err.demoSign");
     const hmac = await useHardware.getState().registerPolicy(compiled.policy);
     const signed = await session.signPsbt({ psbt, policy: compiled.policy, hmac });
-    if (!addedSignaturePubkeys(psbt, signed).length) throw new Error("tx.err.noSig");
+    const added = addedSignaturePubkeys(psbt, signed);
+    const any = addedSignaturePubkeys("", signed);
+    if (!added.length && !any.length) throw new Error("tx.err.noSig");
     setPsbt(signed);
-    return signed;
+    return { psbt: signed, added: added.length > 0 };
   } catch (e) {
     setError(localizeMessage(locale, e instanceof Error ? e.message : "tx.err.sign"));
     return null;
   } finally {
     setBusy(null);
   }
+}
+
+function deliver(
+  next: { psbt: string; added: boolean },
+  setPsbt: (v: string) => void,
+  takeSignature: (v: string) => { merged: string; gained: boolean },
+  pathIndex: number | null,
+  setError: (v: string | null) => void,
+  locale: "de" | "en",
+) {
+  const { merged, gained } = takeSignature(next.psbt);
+  setPsbt(merged);
+  if (next.added || gained) noteSigned(next.psbt, pathIndex);
+  else setError(localizeMessage(locale, "tx.err.noSig"));
 }
 
 function noteSigned(psbt: string, pathIndex: number | null) {
