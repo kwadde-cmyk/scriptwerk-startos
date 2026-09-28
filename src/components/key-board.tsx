@@ -565,7 +565,7 @@ function KeyImportDialog({
 
   return (
     <Dialog open={open} onOpenChange={openDetailsFrom}>
-      <DialogContent className="flex max-h-[min(720px,calc(100dvh-2rem))] w-[min(720px,calc(100vw-1rem))] flex-col overflow-hidden">
+      <DialogContent className="grid max-h-[min(720px,calc(100dvh-2rem))] w-[min(720px,calc(100vw-1rem))] grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex flex-wrap items-center gap-1">
             {entry.note.trim() || t("keys.unnamed")}
@@ -577,7 +577,7 @@ function KeyImportDialog({
           </DialogTitle>
           <DialogDescription>{t("keys.dialogBlurb")}</DialogDescription>
         </DialogHeader>
-        <Tabs defaultValue="master" className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <Tabs defaultValue="master" className="flex h-full min-h-0 flex-col overflow-hidden">
           <TabsList className="w-full shrink-0">
             <TabsTrigger value="master" className="flex-1">
               {t("keys.master")}

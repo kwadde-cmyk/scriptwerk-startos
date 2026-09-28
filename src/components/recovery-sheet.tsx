@@ -51,12 +51,12 @@ export function RecoverySheetButton() {
           <ScrollText />
         </Button>
       </DialogTrigger>
-      <DialogContent className="flex max-h-[min(92dvh,56rem)] w-[min(52rem,calc(100vw-1rem))] flex-col overflow-hidden print:hidden">
+      <DialogContent className="grid max-h-[min(92dvh,56rem)] w-[min(52rem,calc(100vw-1rem))] grid-rows-[auto_minmax(0,1fr)_auto] overflow-hidden print:hidden">
         <DialogHeader className="shrink-0">
           <DialogTitle>{t("recovery.title")}</DialogTitle>
           <DialogDescription>{t("recovery.blurb")}</DialogDescription>
         </DialogHeader>
-        <ScrollArea className="min-h-0 flex-1 rounded-lg bg-white text-neutral-900">
+        <ScrollArea className="h-full min-h-0 rounded-lg bg-white text-neutral-900">
           <div className="p-4">
             <RecoveryDocument />
           </div>

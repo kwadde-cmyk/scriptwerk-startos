@@ -211,12 +211,12 @@ export function ImportExportBar() {
             <QrCode />
           </Button>
         </DialogTrigger>
-        <DialogContent className="flex max-h-[min(720px,calc(100dvh-2rem))] w-[min(640px,calc(100vw-1.5rem))] flex-col overflow-hidden">
+        <DialogContent className="grid max-h-[min(720px,calc(100dvh-2rem))] w-[min(640px,calc(100vw-1.5rem))] grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
           <DialogHeader className="shrink-0">
             <DialogTitle>{t("export.title")}</DialogTitle>
             <DialogDescription>{t("export.blurb")}</DialogDescription>
           </DialogHeader>
-          <ScrollArea className="min-h-0 flex-1">
+          <ScrollArea className="h-full min-h-0">
           <div className="pr-3">
           {compiled && !compiled.ok ? (
             <p className="text-sm text-danger">{compiled.error}</p>

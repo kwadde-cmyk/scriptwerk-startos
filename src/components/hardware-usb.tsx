@@ -108,12 +108,12 @@ function HardwareDialogBody() {
   }
 
   return (
-    <DialogContent className="flex max-h-[min(720px,calc(100dvh-2rem))] w-[min(520px,calc(100vw-1.5rem))] flex-col overflow-hidden">
+    <DialogContent className="grid max-h-[min(720px,calc(100dvh-2rem))] w-[min(520px,calc(100vw-1.5rem))] grid-rows-[auto_minmax(0,1fr)] overflow-hidden">
       <DialogHeader className="shrink-0">
         <DialogTitle>{t("hw.title")}</DialogTitle>
         <DialogDescription>{t("hw.blurb")}</DialogDescription>
       </DialogHeader>
-      <ScrollArea className="min-h-0 flex-1">
+      <ScrollArea className="h-full min-h-0">
       <div className="pr-3">
 
       {hid === "missing" ? <p className="text-xs text-warn">{t("hw.needChrome")}</p> : null}

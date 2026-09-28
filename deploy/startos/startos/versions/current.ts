@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.48:0',
+  version: '0.1.49:0',
   releaseNotes: {
     en_US:
-      'Cleanup only. Receive and change addresses are derived at the same time during a scan, and unused helpers are gone. Signing, the PSBT and the Electrum scan are unchanged.',
+      'The node dialog scrolls again, with the thin bar. The same fix covers the hardware, export, recovery and key dialogs.',
     de_DE:
-      'Nur Aufräumen. Empfangs- und Wechseladressen werden beim Scan gleichzeitig abgeleitet, ungenutzte Helfer sind weg. Signieren, die PSBT und der Electrum-Scan bleiben gleich.',
+      'Der Node-Dialog scrollt wieder, mit dem schmalen Balken. Dieselbe Korrektur gilt für Hardware, Export, Recovery und den Key-Dialog.',
     es_ES:
-      'Solo limpieza. Las direcciones de recepción y de cambio se derivan a la vez en un escaneo, y desaparecen ayudas sin uso. La firma, la PSBT y el escaneo Electrum no cambian.',
+      'El diálogo del nodo vuelve a desplazarse, con la barra fina. La misma corrección vale para hardware, exportación, recovery y el diálogo de keys.',
     pl_PL:
-      'Tylko porządki. Adresy odbioru i reszty są wyprowadzane równolegle przy skanie, nieużywane pomoce zniknęły. Podpisywanie, PSBT i skan Electrum bez zmian.',
+      'Okno noda znowu się przewija, z cienkim paskiem. Ta sama poprawka obejmuje sprzęt, eksport, recovery i okno kluczy.',
     fr_FR:
-      'Nettoyage seulement. Les adresses de réception et de change sont dérivées en même temps lors d’un scan, les aides inutilisées disparaissent. Signature, PSBT et scan Electrum inchangés.',
+      'La fenêtre du nœud défile à nouveau, avec la barre fine. Le même correctif couvre le matériel, l’export, la recovery et le dialogue des clés.',
   },
   migrations: {
     up: async () => {},
