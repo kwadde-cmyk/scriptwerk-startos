@@ -35,6 +35,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { useT } from "@/lib/use-t";
 import { CopyButton, Copyable } from "@/components/copy-button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { KeyRound, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 
@@ -83,7 +84,8 @@ export function KeyBoard({ fill = false }: { fill?: boolean }) {
           </Button>
         ) : null}
       </div>
-      <div className={fill ? "min-h-0 flex-1 overflow-auto px-4 pb-3" : "max-h-40 overflow-auto px-4 pb-3"}>
+      <ScrollArea className={fill ? "min-h-0 flex-1" : "max-h-40"}>
+        <div className="px-4 pb-3">
         {visible.length === 0 ? (
           <p className="py-2 text-xs text-fg-muted">{t("keys.empty")}</p>
         ) : (
@@ -126,7 +128,8 @@ export function KeyBoard({ fill = false }: { fill?: boolean }) {
             ))}
           </div>
         )}
-      </div>
+        </div>
+      </ScrollArea>
       <KeyImportDialog entry={details} open={Boolean(details)} onOpenChange={(open) => !open && closeDetails()} />
     </div>
   );
@@ -586,7 +589,9 @@ function KeyImportDialog({
               {t("keys.details")}
             </TabsTrigger>
           </TabsList>
-          <TabsContent value="master" className="min-h-0 flex-1 space-y-3 overflow-auto">
+          <TabsContent value="master" className="min-h-0 flex-1 overflow-hidden">
+            <ScrollArea className="h-full">
+            <div className="space-y-3 pr-3">
             <Field label={t("keys.name")}>
               <Input
                 value={entry.note}
@@ -665,8 +670,12 @@ function KeyImportDialog({
                 </p>
               ) : null}
             </ImportPane>
+            </div>
+            </ScrollArea>
           </TabsContent>
-          <TabsContent value="children" className="min-h-0 flex-1 space-y-3 overflow-auto">
+          <TabsContent value="children" className="min-h-0 flex-1 overflow-hidden">
+            <ScrollArea className="h-full">
+            <div className="space-y-3 pr-3">
             {filled || entry.fingerprint ? (
               <>
                 {reuseKeys ? <ReusePlan needs={needs} /> : null}
@@ -745,11 +754,17 @@ function KeyImportDialog({
             ) : (
               <p className="text-sm text-fg-muted">{t("keys.childNeedParent")}</p>
             )}
+            </div>
+            </ScrollArea>
           </TabsContent>
-          <TabsContent value="details" className="min-h-0 flex-1 space-y-3 overflow-auto">
+          <TabsContent value="details" className="min-h-0 flex-1 overflow-hidden">
+            <ScrollArea className="h-full">
+            <div className="space-y-3 pr-3">
             <p className="text-2xs text-fg-muted">{t("keys.detailsTogether")}</p>
             <p className="text-2xs text-fg-muted">{t("keys.xpubTap")}</p>
             <KeySlotTree entry={entry} needs={needs} stages={stages} reuse={reuseKeys} />
+            </div>
+            </ScrollArea>
           </TabsContent>
         </Tabs>
       </DialogContent>
