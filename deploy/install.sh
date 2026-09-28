@@ -72,7 +72,7 @@ fi
 ELECTRUM="${ELECTRUM_URL-}"
 if [[ -t 0 && -z "${ELECTRUM_URL+x}" ]]; then
   echo "Electrum (Electrs/Fulcrum) für UTXOs, optional — oft Fulcrum auf StartOS."
-  echo "z. B. ssl://capable-dosage.local:50002 oder host.local:50001. Leer = später in der UI."
+  echo "z. B. ssl://fulcrum.local:50002 oder electrum.local:50001. Leer = später in der UI."
   read -r -p "Electrum-URL [leer]: " ELECTRUM || true
 fi
 
@@ -146,5 +146,4 @@ if [[ -n "$ELECTRUM" ]]; then
 else
   echo "  Electrum: nicht gesetzt — in der UI eintragen (z. B. Fulcrum auf StartOS)."
 fi
-echo "  Handy:  LAN-Adresse in Chrome → Zum Startbildschirm."
 echo "Nginx-Beispiel falls Port 80 schon ein Webserver ist:  deploy/nginx-scriptwerk.conf"

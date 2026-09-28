@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.50:0',
+  version: '0.1.51:0',
   releaseNotes: {
     en_US:
-      'After a Ledger or BitBox sign, Scriptwerk checks that a signature is actually in the PSBT and names the key. QR import follows a QR video (UR, BBQr, Specter) and shows which signature the chosen path still needs.',
+      'The policy tree can color spend paths that are open now versus still locked, based on the chain tip and watched coins. Signature status still names a key when the PSBT has no BIP32 derivation, by matching the public key to the studio xpub.',
     de_DE:
-      'Nach dem Signieren mit Ledger oder BitBox prüft Scriptwerk, dass die Signatur wirklich in der PSBT steht, und nennt den Key. Der QR-Import folgt einem QR-Video (UR, BBQr, Specter) und zeigt, welche Signatur auf dem gewählten Pfad noch fehlt.',
+      'Der Policy-Baum kann Ausgabepfade färben, die jetzt offen oder noch gesperrt sind — anhand der Chain-Spitze und der beobachteten Coins. Der Signaturstatus nennt den Key auch dann, wenn die PSBT keine BIP32-Ableitung trägt, indem der Public Key mit dem xpub im Studio abgeglichen wird.',
     es_ES:
-      'Tras firmar con Ledger o BitBox, Scriptwerk comprueba que la firma está en la PSBT y dice de qué key es. La importación QR sigue un QR video (UR, BBQr, Specter) y muestra qué firma falta en el camino elegido.',
+      'El árbol de la policy puede colorear los caminos de gasto abiertos ahora frente a los aún bloqueados, según la punta de la cadena y las monedas vigiladas. El estado de la firma nombra la key aunque la PSBT no traiga derivación BIP32, comparando la clave pública con el xpub del estudio.',
     pl_PL:
-      'Po podpisie Ledgerem lub BitBoxem Scriptwerk sprawdza, że podpis jest w PSBT, i podaje klucz. Import QR śledzi wideo QR (UR, BBQr, Specter) i pokazuje, którego podpisu brakuje na wybranej ścieżce.',
+      'Drzewo polityki może kolorować ścieżki wydania otwarte teraz i jeszcze zablokowane, według czubka łańcucha i obserwowanych coinów. Status podpisu podaje klucz także wtedy, gdy PSBT nie ma derywacji BIP32 — dopasowując klucz publiczny do xpub w studiu.',
     fr_FR:
-      'Après une signature Ledger ou BitBox, Scriptwerk vérifie que la signature est bien dans la PSBT et nomme la clé. L’import QR suit une vidéo QR (UR, BBQr, Specter) et indique quelle signature manque encore sur le chemin choisi.',
+      'L’arbre de policy peut colorer les chemins de dépense ouverts maintenant et ceux encore verrouillés, d’après la pointe de chaîne et les pièces suivies. Le statut de signature nomme la clé même si la PSBT n’a pas de dérivation BIP32, en rapprochant la clé publique de l’xpub du studio.',
   },
   migrations: {
     up: async () => {},

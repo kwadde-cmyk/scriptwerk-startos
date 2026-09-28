@@ -227,6 +227,47 @@ describe("unsigned psbt", () => {
     assert.equal(status.inputs[0]!.pathReady, false);
     assert.deepEqual(status.inputs[0]!.missing, ["BitBox", "Coldcard"]);
   });
+
+  it("names partial sigs from xpubs when the PSBT dropped BIP32 derivations", async () => {
+    const { BIP32Factory } = await import("bip32");
+    const ecc = await import("@bitcoinerlab/secp256k1");
+    const api = BIP32Factory(ecc as never);
+    const xA = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
+    const xB = "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw";
+    const pubA = Buffer.from(api.fromBase58(xA).derive(0).derive(0).publicKey).toString("hex");
+    const pubB = Buffer.from(api.fromBase58(xB).derive(0).derive(0).publicKey).toString("hex");
+    const plan = planPayments({
+      coins: [{ txid: TXID, vout: 0, amountBtc: 0.002, address: ADDR }],
+      payments: [{ address: ADDR, sats: 100_000 }],
+      feeSats: 2_000,
+      changeAddress: ADDR,
+    });
+    const bare = buildPsbt(plan, {
+      inputs: [{ address: ADDR, witnessScript: "51", derivations: [] }],
+    });
+    const signed = withPartialSigs(bare, [
+      { input: 0, pubkey: Buffer.from(pubA, "hex"), signature: Buffer.from("aa", "hex") },
+      { input: 0, pubkey: Buffer.from(pubB, "hex"), signature: Buffer.from("bb", "hex") },
+    ]);
+    const keys = [
+      { ...emptyKey("A"), fingerprint: "aaaaaaaa", xpub: xA, derivation: "48'/0'/0'/2'", note: "Ledger" },
+      { ...emptyKey("B"), fingerprint: "bbbbbbbb", xpub: xB, derivation: "48'/0'/0'/2'", note: "DIY Love" },
+    ];
+    const stages = [{ id: "s", delay: 0, k: 2, keys: ["A", "B"] }];
+    const both = signatureReport(signed, { keys, stages, reuse: true, pathIndex: 0 });
+    assert.deepEqual(both.inputs[0]!.present.map((p) => p.label).sort(), ["DIY Love", "Ledger"]);
+    assert.equal(both.inputs[0]!.present.every((p) => p.onPath), true);
+    assert.deepEqual(both.inputs[0]!.missing, []);
+    assert.equal(both.inputs[0]!.pathReady, true);
+    const half = signatureReport(
+      withPartialSigs(bare, [{ input: 0, pubkey: Buffer.from(pubA, "hex"), signature: Buffer.from("aa", "hex") }]),
+      { keys, stages, reuse: true, pathIndex: 0 },
+    );
+    assert.deepEqual(half.inputs[0]!.present.map((p) => p.label), ["Ledger"]);
+    assert.deepEqual(half.inputs[0]!.missing, ["DIY Love"]);
+    assert.equal(half.inputs[0]!.haveOnPath, 1);
+    assert.equal(half.inputs[0]!.pathReady, false);
+  });
 });
 
 describe("qr video", () => {

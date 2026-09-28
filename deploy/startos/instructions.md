@@ -12,10 +12,6 @@ In **Config / Dependencies**, enable **Bitcoin Core**. Scriptwerk then:
 
 If Core is not installed, the UI still works. Enter any RPC URL when unlocked.
 
-## Android / desktop
-
-Open the UI URL in Chrome → Add to Home Screen. Ledger/BitBox USB needs a desktop Chromium with WebHID — not the StartOS webview.
-
 ## Backup
 
 Policy state lives in the **browser** (`localStorage`), not in the service volume. Export descriptors or BSMS before wiping the service. A StartOS backup of this package does not contain your keys.
