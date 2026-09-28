@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   accountPathFrom,
   applyKeyMaterial,
@@ -42,18 +42,18 @@ import { toast } from "sonner";
 export function KeyBoard({ fill = false }: { fill?: boolean }) {
   const { t } = useT();
   const rawKeys = useStudio((s) => s.keys);
-  const keys = rawKeys.map(normalizeKeyEntry);
+  const keys = useMemo(() => rawKeys.map(normalizeKeyEntry), [rawKeys]);
   const stages = useStudio((s) => s.stages);
   const reuseKeys = useStudio((s) => s.reuseKeys);
   const removeUnusedKeys = useStudio((s) => s.removeUnusedKeys);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [detailsId, setDetailsId] = useState<string | null>(null);
   const details = keys.find((k) => k.id === detailsId) ?? null;
-  const aliases = reuseAliasHints(stages, reuseKeys);
-  const masters = new Set(stages.flatMap((s) => s.keys));
-  const visible = sortKeyEntries(
-    stages.length ? keys.filter((k) => !isDerivedAlias(k.name, masters)) : keys,
-    stages,
+  const aliases = useMemo(() => reuseAliasHints(stages, reuseKeys), [stages, reuseKeys]);
+  const masters = useMemo(() => new Set(stages.flatMap((s) => s.keys)), [stages]);
+  const visible = useMemo(
+    () => sortKeyEntries(stages.length ? keys.filter((k) => !isDerivedAlias(k.name, masters)) : keys, stages),
+    [keys, stages, masters],
   );
   const unusedCount = visible.filter((k) => !masters.has(k.name)).length;
   const childPresent = visible.reduce((n, k) => n + k.children.filter((c) => c.xpub.trim()).length, 0);

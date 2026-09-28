@@ -172,7 +172,7 @@ function NodeDialogBody() {
         <DialogDescription>{t("node.blurb")}</DialogDescription>
       </DialogHeader>
       <ScrollArea className="min-h-0 flex-1">
-      <div className="space-y-3 pr-3">
+      <div className="pr-3">
 
       {canLock ? (
         <div className="flex flex-col gap-1.5">

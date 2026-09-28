@@ -114,7 +114,7 @@ function HardwareDialogBody() {
         <DialogDescription>{t("hw.blurb")}</DialogDescription>
       </DialogHeader>
       <ScrollArea className="min-h-0 flex-1">
-      <div className="space-y-3 pr-3">
+      <div className="pr-3">
 
       {hid === "missing" ? <p className="text-xs text-warn">{t("hw.needChrome")}</p> : null}
       {hid === "iframe" ? <p className="text-xs text-warn">{t("hw.iframe")}</p> : null}
