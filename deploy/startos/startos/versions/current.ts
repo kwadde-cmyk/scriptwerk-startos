@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.54:0',
+  version: '0.1.55:0',
   releaseNotes: {
     en_US:
-      'Docs and the StartOS description match the studio: build, finalize, and send. No seed is stored; signing stays on Ledger or BitBox.',
+      'Amounts use the unit icon only. The fee is sat/vB or absolute sats, and the other value is calculated. Loading or importing a policy clears the previous UTXO list. Icon buttons have tooltips.',
     de_DE:
-      'Doku und StartOS-Beschreibung passen zum Studio: bauen, finalisieren, abschicken. Kein Seed; signiert wird auf Ledger oder BitBox.',
+      'Beträge zeigen nur noch das Einheiten-Icon. Die Gebühr ist sat/vB oder absolute sats, der andere Wert wird ausgerechnet. Laden oder Import leert die alte UTXO-Liste. Icon-Buttons haben Tooltips.',
     es_ES:
-      'La documentación y la descripción de StartOS coinciden con el estudio: construir, finalizar y enviar. No se guarda ninguna semilla; la firma queda en Ledger o BitBox.',
+      'Los importes muestran solo el icono de unidad. La comisión es sat/vB o sats absolutos; el otro valor se calcula. Cargar o importar una policy borra la lista de UTXO anterior. Los botones de icono tienen tooltips.',
     pl_PL:
-      'Dokumentacja i opis StartOS zgadzają się ze studiem: budowa, finalizacja i wysyłka. Seed nie jest przechowywany; podpis zostaje na Ledgerze lub BitBoxie.',
+      'Kwoty pokazują tylko ikonę jednostki. Opłata to sat/vB albo sats absolutne; druga wartość jest liczona. Wczytanie lub import policy czyści poprzednią listę UTXO. Przyciski z ikonami mają podpowiedzi.',
     fr_FR:
-      'La doc et la description StartOS suivent le studio : construire, finaliser, envoyer. Aucune seed n’est stockée ; la signature reste sur Ledger ou BitBox.',
+      'Les montants n’affichent que l’icône d’unité. Les frais sont en sat/vB ou en sats absolus, l’autre valeur est calculée. Charger ou importer une policy vide la liste d’UTXO précédente. Les boutons icône ont des infobulles.',
   },
   migrations: {
     up: async () => {},
