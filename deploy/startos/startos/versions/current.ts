@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.53:0',
+  version: '0.1.54:0',
   releaseNotes: {
     en_US:
-      'The transaction tab is three steps: build, finalize, and send. Finalize exports or imports a PSBT as a file or QR. USB signing tells a Ledger from a BitBox.',
+      'Docs and the StartOS description match the studio: build, finalize, and send. No seed is stored; signing stays on Ledger or BitBox.',
     de_DE:
-      'Der Transaktions-Tab hat drei Schritte: bauen, finalisieren, abschicken. Finalisieren exportiert oder importiert eine PSBT als Datei oder QR. USB erkennt Ledger und BitBox selbst.',
+      'Doku und StartOS-Beschreibung passen zum Studio: bauen, finalisieren, abschicken. Kein Seed; signiert wird auf Ledger oder BitBox.',
     es_ES:
-      'La pestaña de transacción tiene tres pasos: construir, finalizar y enviar. Finalizar exporta o importa una PSBT como archivo o QR. El USB distingue Ledger y BitBox.',
+      'La documentación y la descripción de StartOS coinciden con el estudio: construir, finalizar y enviar. No se guarda ninguna semilla; la firma queda en Ledger o BitBox.',
     pl_PL:
-      'Karta transakcji ma trzy kroki: budowa, finalizacja i wysyłka. Finalizacja eksportuje lub importuje PSBT jako plik albo QR. USB samo rozpoznaje Ledger i BitBox.',
+      'Dokumentacja i opis StartOS zgadzają się ze studiem: budowa, finalizacja i wysyłka. Seed nie jest przechowywany; podpis zostaje na Ledgerze lub BitBoxie.',
     fr_FR:
-      'L’onglet transaction a trois étapes : construire, finaliser, envoyer. Finaliser exporte ou importe une PSBT en fichier ou QR. L’USB distingue Ledger et BitBox.',
+      'La doc et la description StartOS suivent le studio : construire, finaliser, envoyer. Aucune seed n’est stockée ; la signature reste sur Ledger ou BitBox.',
   },
   migrations: {
     up: async () => {},

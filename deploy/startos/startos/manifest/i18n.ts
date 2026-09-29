@@ -8,13 +8,13 @@ export const short = {
 
 export const long = {
   en_US:
-    'Build, import and check Nunchuk-style wsh() miniscript policies. Check descriptors against Bitcoin Core on this device or on the LAN.',
+    'Build SegWit wsh() miniscript policies, check them on Bitcoin Core, watch coins via Fulcrum or Electrs, then build, sign on Ledger or BitBox, and send a transaction. No seed is stored.',
   de_DE:
-    'Nunchuk-taugliche wsh()-Miniscript-Policies bauen, importieren und gegen Bitcoin Core auf diesem Gerät oder im LAN prüfen.',
+    'SegWit-wsh()-Miniscript-Policies bauen, an Bitcoin Core prüfen, Coins über Fulcrum oder Electrs beobachten, dann eine Transaktion bauen, auf Ledger oder BitBox signieren und abschicken. Kein Seed.',
   es_ES:
-    'Crear, importar y comprobar políticas miniscript wsh() al estilo Nunchuk. Verificar descriptores con Bitcoin Core en este dispositivo o en la LAN.',
+    'Crea políticas miniscript wsh() SegWit, compruébalas en Bitcoin Core, observa monedas con Fulcrum o Electrs, y construye, firma en Ledger o BitBox y envía una transacción. No guarda ninguna semilla.',
   pl_PL:
-    'Twórz, importuj i sprawdzaj polityki miniscript wsh() w stylu Nunchuk. Weryfikuj deskryptory przez Bitcoin Core na tym urządzeniu lub w sieci LAN.',
+    'Twórz polityki miniscript wsh() SegWit, sprawdzaj je w Bitcoin Core, obserwuj monety przez Fulcrum lub Electrs, potem zbuduj, podpisz na Ledgerze lub BitBoxie i wyślij transakcję. Nie przechowuje seeda.',
   fr_FR:
-    'Construire, importer et vérifier des politiques miniscript wsh() façon Nunchuk. Contrôler les descripteurs via Bitcoin Core sur cet appareil ou le LAN.',
+    'Construire des politiques miniscript wsh() SegWit, les vérifier sur Bitcoin Core, suivre les pièces via Fulcrum ou Electrs, puis construire, signer sur Ledger ou BitBox et envoyer une transaction. Aucune seed n’est stockée.',
 }

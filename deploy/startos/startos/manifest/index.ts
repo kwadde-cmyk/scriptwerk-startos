@@ -25,7 +25,7 @@ export const manifest = setupManifest({
   dependencies: {
     bitcoind: {
       description:
-        'Optional JSON-RPC for getdescriptorinfo. Scriptwerk creates a unique scriptwerk_xxxxxxxx RPC user.',
+        'Optional JSON-RPC: descriptor check and sending a finished transaction. Scriptwerk creates a unique scriptwerk_xxxxxxxx RPC user.',
       optional: true,
       metadata: {
         title: 'Bitcoin Core',

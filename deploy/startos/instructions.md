@@ -10,8 +10,22 @@ In **Config / Dependencies**, enable **Bitcoin Core**. Scriptwerk then:
 2. Talks to Core over the internal network — no bookmarklet.
 3. Locks the Node dialog on those credentials. Unlock to point at another RPC; **Reset** restores the StartOS values.
 
-If Core is not installed, the UI still works. Enter any RPC URL when unlocked.
+If Core is not installed, the UI still works. Enter any RPC URL when unlocked. Core checks the descriptor and can receive a finished transaction.
+
+## UTXOs (optional)
+
+Enable **Fulcrum** (preferred) or **Electrs** on the same device. Scriptwerk uses the internal plaintext port 50001. Do not paste the LAN `ssl://` address from Interfaces. If neither is installed, enter an Electrum host in the Node dialog, for example `host.local:50001`.
+
+## Transactions
+
+Descriptor tab → **Tx**, three steps:
+
+1. **Build** from scanned coins. Send, or one recovery transaction per coin whose timelock has opened.
+2. **Finalize.** Export or import the PSBT as a file or QR. Import also signs over USB; the browser tells a Ledger from a BitBox. A QR video (UR, BBQr, Specter) is read as a sequence, not one frame. Signatures for the same transaction stay together.
+3. **Send** the finished transaction to the node, or save it as a file.
+
+USB and the camera need desktop Chrome or Edge with WebHID. The StartOS webview cannot register or sign on hardware.
 
 ## Backup
 
-Policy state lives in the **browser** (`localStorage`), not in the service volume. Export descriptors or BSMS before wiping the service. A StartOS backup of this package does not contain your keys.
+Policy state lives in the **browser** (`localStorage`), not in the service volume. Export descriptors or BSMS before wiping the service. A StartOS backup of this package does not contain your keys. Scriptwerk does not store a seed.

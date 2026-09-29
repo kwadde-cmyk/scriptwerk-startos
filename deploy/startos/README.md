@@ -46,7 +46,7 @@ StartOS backup includes volume `main` only — that is `store.json` (RPC user). 
 
 ## Limitations and Differences
 
-1. Not a wallet and not a signer. It designs and checks policies; coins never sit in this service.
+1. Not a seed wallet. Xpubs and the policy stay in the browser. Private keys stay on Ledger or BitBox. A PSBT can be signed there and sent to Bitcoin Core. Coins never sit in this service.
 2. StartOS backup does not contain keys or policies.
 3. Ledger and BitBox USB need a desktop Chromium with WebHID. The StartOS webview and most phones cannot register hardware.
 4. Same-device Core RPC is injected and locked. A different node works only after unlocking the Node dialog; the host proxy is then skipped so the form URL and password are used.
