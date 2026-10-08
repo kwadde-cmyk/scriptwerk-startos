@@ -21,7 +21,7 @@ Enable **Fulcrum** (preferred) or **Electrs** on the same device. Scriptwerk use
 Descriptor tab → **Tx**, three steps:
 
 1. **Build** from scanned coins. Send, or one recovery transaction per coin whose timelock has opened.
-2. **Finalize.** Export or import the PSBT as a file or QR. Import also signs over USB; the browser tells a Ledger from a BitBox. A QR video (UR, BBQr, Specter) is read as a sequence, not one frame. Signatures for the same transaction stay together.
+2. **Finalize.** Export the PSBT as a file or a static QR. Import it as a file or a QR video, or sign over USB; the browser tells a Ledger from a BitBox. A QR video (UR, BBQr, Specter) is read as a sequence, not one frame. Signatures for the same transaction stay together.
 3. **Send** the finished transaction to the node, or save it as a file.
 
 USB and the camera need desktop Chrome or Edge with WebHID. The StartOS webview cannot register or sign on hardware.

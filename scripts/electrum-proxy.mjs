@@ -313,6 +313,30 @@ export async function lookupElectrumUtxos(addresses, serverFromClient) {
   };
 }
 
+export async function handleElectrumPost(parsed) {
+  const body = parsed && typeof parsed === "object" ? parsed : {};
+  if (body.tip) return lookupElectrumTip(body.server);
+  if (body.expand) return expandDescriptorSpots(body.descriptor, body.spots);
+  if (Array.isArray(body.derive) && body.derive.length) {
+    return lookupElectrumDerived(body.derive, body.server);
+  }
+  const out = await lookupElectrumUtxos(body.addresses, body.server);
+  if (out.status !== 200 || !Array.isArray(body.spans)) return out;
+  const parsedBody = JSON.parse(out.body);
+  const flatUsed = Array.isArray(parsedBody.result?.used) ? parsedBody.result.used : [];
+  const addrs = Array.isArray(body.addresses) ? body.addresses.map(String) : [];
+  let off = 0;
+  parsedBody.result.groups = [];
+  parsedBody.result.used = [];
+  for (const n of body.spans) {
+    const len = Math.max(0, Math.floor(Number(n) || 0));
+    parsedBody.result.groups.push(addrs.slice(off, off + len));
+    parsedBody.result.used.push(flatUsed.slice(off, off + len).map(Boolean));
+    off += len;
+  }
+  return { status: 200, body: JSON.stringify(parsedBody) };
+}
+
 export async function lookupElectrumTip(serverFromClient) {
   const fromUi = parseTarget(serverFromClient);
   const env = parseTarget(electrumEnvUrl());
@@ -386,45 +410,10 @@ export function attachElectrumProxy(middlewares) {
       return;
     }
     try {
-      if (parsed.tip) {
-        const out = await lookupElectrumTip(parsed.server);
-        res.statusCode = out.status;
-        res.setHeader("content-type", "application/json");
-        res.end(out.body);
-        return;
-      }
-      if (parsed.expand) {
-        const out = await expandDescriptorSpots(parsed.descriptor, parsed.spots);
-        res.statusCode = out.status;
-        res.setHeader("content-type", "application/json");
-        res.end(out.body);
-        return;
-      }
-      if (Array.isArray(parsed.derive) && parsed.derive.length) {
-        const out = await lookupElectrumDerived(parsed.derive, parsed.server);
-        res.statusCode = out.status;
-        res.setHeader("content-type", "application/json");
-        res.end(out.body);
-        return;
-      }
-      const out = await lookupElectrumUtxos(parsed.addresses, parsed.server);
-      if (out.status === 200 && Array.isArray(parsed.spans)) {
-        const body = JSON.parse(out.body);
-        const flatUsed = Array.isArray(body.result?.used) ? body.result.used : [];
-        const addrs = Array.isArray(parsed.addresses) ? parsed.addresses.map(String) : [];
-        let off = 0;
-        body.result.groups = [];
-        body.result.used = [];
-        for (const n of parsed.spans) {
-          const len = Math.max(0, Math.floor(Number(n) || 0));
-          body.result.groups.push(addrs.slice(off, off + len));
-          body.result.used.push(flatUsed.slice(off, off + len).map(Boolean));
-          off += len;
-        }
-        out.body = JSON.stringify(body);
-      }
+      const out = await handleElectrumPost(parsed);
       res.statusCode = out.status;
       res.setHeader("content-type", "application/json");
+      res.setHeader("cache-control", "no-store");
       res.end(out.body);
     } catch (err) {
       res.statusCode = 502;

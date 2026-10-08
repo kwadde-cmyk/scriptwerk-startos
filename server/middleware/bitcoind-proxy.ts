@@ -1,5 +1,5 @@
 import { bitcoindInfo, bitcoindUpstream, forwardBitcoindRpc } from "../../scripts/bitcoind-proxy.mjs";
-import { electrumInfo, expandDescriptorSpots, lookupElectrumTip, lookupElectrumUtxos } from "../../scripts/electrum-proxy.mjs";
+import { electrumInfo, handleElectrumPost, lookupElectrumTip } from "../../scripts/electrum-proxy.mjs";
 
 interface ProxyEvent {
   url: URL;
@@ -36,10 +36,10 @@ export default async function bitcoindProxyMiddleware(
       return new Response(null, { status: 204, headers: { "cache-control": "no-store" } });
     }
     if (method !== "POST") return new Response("POST only", { status: 405 });
-    let parsed: { addresses?: string[]; server?: string; tip?: boolean; expand?: boolean; descriptor?: string; spots?: { change?: number; index?: number }[] } = {};
+    let parsed: Record<string, unknown> = {};
     try {
-      if (typeof event.req.json === "function") parsed = (await event.req.json()) as typeof parsed;
-      else if (typeof event.req.text === "function") parsed = JSON.parse((await event.req.text()) || "{}") as typeof parsed;
+      if (typeof event.req.json === "function") parsed = (await event.req.json()) as Record<string, unknown>;
+      else if (typeof event.req.text === "function") parsed = JSON.parse((await event.req.text()) || "{}") as Record<string, unknown>;
     } catch {
       return new Response(JSON.stringify({ error: { message: "invalid json" } }), {
         status: 400,
@@ -47,21 +47,7 @@ export default async function bitcoindProxyMiddleware(
       });
     }
     try {
-      if (parsed.expand) {
-        const out = await expandDescriptorSpots(parsed.descriptor, parsed.spots);
-        return new Response(out.body, {
-          status: out.status,
-          headers: { "content-type": "application/json", "cache-control": "no-store" },
-        });
-      }
-      if (parsed.tip) {
-        const out = await lookupElectrumTip(parsed.server);
-        return new Response(out.body, {
-          status: out.status,
-          headers: { "content-type": "application/json", "cache-control": "no-store" },
-        });
-      }
-      const out = await lookupElectrumUtxos(parsed.addresses, parsed.server);
+      const out = await handleElectrumPost(parsed);
       return new Response(out.body, {
         status: out.status,
         headers: { "content-type": "application/json", "cache-control": "no-store" },
