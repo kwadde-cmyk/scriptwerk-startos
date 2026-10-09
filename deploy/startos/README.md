@@ -50,7 +50,7 @@ StartOS backup includes volume `main` only — that is `store.json` (RPC user). 
 2. StartOS backup does not contain keys or policies.
 3. Ledger and BitBox USB need a desktop Chromium with WebHID. The StartOS webview and most phones cannot register hardware.
 4. Same-device Core RPC is injected and locked. A different node works only after unlocking the Node dialog; the host proxy is then skipped so the form URL and password are used.
-5. SegWit `wsh()` miniscript only. Taproot / `tr()` is not implemented.
+5. Policies are SegWit `wsh()` miniscript. One key and no timelock is `wpkh`. An imported `wsh(pk(…))` is kept. Taproot / `tr()` is not implemented.
 6. Relative timelock ceiling is a studio setting; some companion apps reject the Bitcoin maximum.
 7. Deprecated npm warnings during the image build (Ledger helper, chart lib, ESLint) do not change the runtime.
 

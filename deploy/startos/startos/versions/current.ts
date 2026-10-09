@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.56:0',
+  version: '0.1.57:0',
   releaseNotes: {
     en_US:
-      'Production Electrum scans derive addresses and group spent history the same way as dev. PSBT export is a file or a static QR; import is a file or a QR video.',
+      'One key and no timelock is native SegWit singlesig (wpkh); an imported wsh(pk) stays that descriptor. Finalize can delete the loaded PSBT. Electrum and RPC may be a remote server; the dialog warns that you have to trust it.',
     de_DE:
-      'Electrum-Scans auf dem Produktions-Server leiten Adressen ab und gruppieren verbrauchte History wie in der Entwicklung. PSBT-Export ist eine Datei oder ein statischer QR; Import ist eine Datei oder ein QR-Video.',
+      'Ein Key ohne Timelock ist natives SegWit-Singlesig (wpkh); ein importiertes wsh(pk) bleibt dieser Descriptor. Finalisieren kann die geladene PSBT löschen. Electrum und RPC dürfen ein Remote-Server sein; der Dialog warnt, dass du ihm vertrauen musst.',
     es_ES:
-      'Los escaneos Electrum en producción derivan direcciones y agrupan el historial gastado igual que en desarrollo. La exportación de la PSBT es un archivo o un QR estático; la importación es un archivo o un vídeo QR.',
+      'Una clave sin bloqueo temporal es singlesig SegWit nativo (wpkh); un wsh(pk) importado se conserva. Finalizar puede borrar la PSBT cargada. Electrum y RPC pueden ser un servidor remoto; el diálogo avisa de que hay que confiar en él.',
     pl_PL:
-      'Skan Electrum na produkcji wyprowadza adresy i grupuje historię wydanych adresów tak jak w trybie deweloperskim. Eksport PSBT to plik albo statyczny kod QR; import to plik albo wideo QR.',
+      'Jeden klucz bez blokady czasowej to natywny singlesig SegWit (wpkh); zaimportowane wsh(pk) zostaje tym deskryptorem. Finalizacja może usunąć wczytane PSBT. Electrum i RPC mogą być zdalnym serwerem; okno ostrzega, że trzeba mu ufać.',
     fr_FR:
-      'Les scans Electrum en production dérivent les adresses et regroupent l’historique dépensé comme en développement. L’export PSBT est un fichier ou un QR statique ; l’import est un fichier ou une vidéo QR.',
+      'Une clé sans verrou temporel est un singlesig SegWit natif (wpkh) ; un wsh(pk) importé reste ce descripteur. Finaliser peut effacer la PSBT chargée. Electrum et RPC peuvent être un serveur distant ; le dialogue avertit qu’il faut lui faire confiance.',
   },
   migrations: {
     up: async () => {},

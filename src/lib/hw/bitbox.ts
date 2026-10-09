@@ -1,5 +1,5 @@
 import type { Bip388Policy } from "@/lib/miniscript/bip388";
-import { ledgerPolicyReady } from "@/lib/miniscript/bip388";
+import { ledgerPolicyReady, isDefaultWpkh } from "@/lib/miniscript/bip388";
 import { bitboxAddressPath } from "./address-check.ts";
 import { formatOrigin, hwErrorMessage, normalizeHwPath, pathToDerivation, defaultAccountPath, type HwSession } from "./types.ts";
 
@@ -21,6 +21,7 @@ function coinOf(_explicit?: "btc", _policy?: Bip388Policy): "btc" {
 function scriptConfig(policy: Bip388Policy) {
   const ready = ledgerPolicyReady(policy);
   if (!ready.ok) throw new Error(ready.error);
+  if (isDefaultWpkh(ready.policy.template)) return { simpleType: "p2wpkh" as const };
   const keys = ready.policy.keys.map((k) => ({
     rootFingerprint: k.fingerprint,
     keypath: k.derivation ? `m/${k.derivation.replace(/^m\//, "")}` : undefined,
@@ -74,6 +75,7 @@ export async function openBitBoxSession(
     },
     async registerPolicy(policy: Bip388Policy) {
       try {
+        if (isDefaultWpkh(policy.template)) return { hmac: "ok" };
         const script = scriptConfig(policy);
         const coin = coinOf(undefined, policy);
         const name = sanitizeName(policy.name) || "Scriptwerk";
@@ -95,20 +97,22 @@ export async function openBitBoxSession(
       try {
         const script = scriptConfig(policy);
         const c = coinOf(coin, policy);
-        let registered = false;
-        try {
-          registered = await device.btcIsScriptConfigRegistered(c, script, undefined);
-        } catch {
-          registered = false;
-        }
-        if (!registered) {
-          await device.btcRegisterScriptConfig(
-            c,
-            script,
-            undefined,
-            "autoXpubTpub",
-            sanitizeName(policy.name) || "Scriptwerk",
-          );
+        if (!("simpleType" in script)) {
+          let registered = false;
+          try {
+            registered = await device.btcIsScriptConfigRegistered(c, script, undefined);
+          } catch {
+            registered = false;
+          }
+          if (!registered) {
+            await device.btcRegisterScriptConfig(
+              c,
+              script,
+              undefined,
+              "autoXpubTpub",
+              sanitizeName(policy.name) || "Scriptwerk",
+            );
+          }
         }
         const path = bitboxAddressPath(policy, fp, change, index);
         return await device.btcAddress(c, path, script, display);
@@ -126,7 +130,8 @@ export async function openBitBoxSession(
     async signPsbt({ psbt, policy }) {
       try {
         const script = scriptConfig(policy);
-        const keypath = script.policy.keys.find((k) => k.keypath)?.keypath || defaultAccountPath();
+        const account = policy.keys.find((k) => k.derivation)?.derivation;
+        const keypath = account ? `m/${account.replace(/^m\//, "")}` : defaultAccountPath();
         return await device.btcSignPSBT("btc", psbt, { scriptConfig: script, keypath }, "sat");
       } catch (err) {
         throw new Error(hwErrorMessage(err));

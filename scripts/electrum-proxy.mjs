@@ -37,18 +37,6 @@ function parseTarget(raw) {
   return { host, port, tls: port === 50002 };
 }
 
-function hostAllowed(host) {
-  const h = String(host ?? "").trim().toLowerCase().replace(/^\[|\]$/g, "");
-  if (!h) return false;
-  if (h === "localhost" || h === "127.0.0.1" || h === "::1") return true;
-  if (h.endsWith(".local") || h.endsWith(".lan")) return true;
-  if (/^10(?:\.\d{1,3}){3}$/.test(h)) return true;
-  if (/^192\.168(?:\.\d{1,3}){2}$/.test(h)) return true;
-  if (/^172\.(1[6-9]|2\d|3[01])(?:\.\d{1,3}){2}$/.test(h)) return true;
-  const env = parseTarget(electrumEnvUrl());
-  return Boolean(env && env.host.toLowerCase() === h);
-}
-
 function hexToBytes(hex) {
   const h = hex.replace(/^0x/, "");
   const out = Buffer.from(h, "hex");
@@ -265,9 +253,6 @@ export async function lookupElectrumUtxos(addresses, serverFromClient) {
   if (!target) {
     return { status: 404, body: JSON.stringify({ error: { message: "hw.utxo.needElectrum" } }) };
   }
-  if (!hostAllowed(target.host)) {
-    return { status: 400, body: JSON.stringify({ error: { message: "hw.utxo.lanOnly" } }) };
-  }
   const addrs = (Array.isArray(addresses) ? addresses : []).map(String).filter(Boolean).slice(0, 200);
   if (!addrs.length) {
     return { status: 400, body: JSON.stringify({ error: { message: "hw.utxo.derive" } }) };
@@ -343,9 +328,6 @@ export async function lookupElectrumTip(serverFromClient) {
   const target = fromUi || env;
   if (!target) {
     return { status: 404, body: JSON.stringify({ error: { message: "hw.utxo.needElectrum" } }) };
-  }
-  if (!hostAllowed(target.host)) {
-    return { status: 400, body: JSON.stringify({ error: { message: "hw.utxo.lanOnly" } }) };
   }
   const rows = await electrumBatch(target, [{ method: "blockchain.headers.subscribe", params: [] }], 4000);
   const head = rows[0];

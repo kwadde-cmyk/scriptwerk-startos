@@ -14,14 +14,14 @@ If Core is not installed, the UI still works. Enter any RPC URL when unlocked. C
 
 ## UTXOs (optional)
 
-Enable **Fulcrum** (preferred) or **Electrs** on the same device. Scriptwerk uses the internal plaintext port 50001. Do not paste the LAN `ssl://` address from Interfaces. If neither is installed, enter an Electrum host in the Node dialog, for example `host.local:50001`.
+Enable **Fulcrum** (preferred) or **Electrs** on the same device. Scriptwerk uses the internal plaintext port 50001. Do not paste the LAN `ssl://` address from Interfaces. If neither is installed, enter an Electrum host in the Node dialog, on your LAN or a remote server. A remote Electrum or RPC host warns that you have to trust it.
 
 ## Transactions
 
 Descriptor tab → **Tx**, three steps:
 
 1. **Build** from scanned coins. Send, or one recovery transaction per coin whose timelock has opened.
-2. **Finalize.** Export the PSBT as a file or a static QR. Import it as a file or a QR video, or sign over USB; the browser tells a Ledger from a BitBox. A QR video (UR, BBQr, Specter) is read as a sequence, not one frame. Signatures for the same transaction stay together.
+2. **Finalize.** Export the PSBT as a file or a static QR. Import it as a file or a QR video, or sign over USB; the browser tells a Ledger from a BitBox. A trash icon deletes the loaded PSBT. A QR video (UR, BBQr, Specter) is read as a sequence, not one frame. Signatures for the same transaction stay together.
 3. **Send** the finished transaction to the node, or save it as a file.
 
 USB and the camera need desktop Chrome or Edge with WebHID. The StartOS webview cannot register or sign on hardware.
