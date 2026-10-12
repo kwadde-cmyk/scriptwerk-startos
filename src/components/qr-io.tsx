@@ -49,16 +49,19 @@ export function QrPreview({ value, label, compact }: { value: string; label: str
     void (async () => {
       try {
         const player = await qrVideoPlayer(value);
+        let n = 0;
         const paint = async () => {
           if (stop || busy) return;
           busy = true;
+          const part = player.next();
+          n += 1;
+          const ur = part.match(/\/(\d+)-(\d+)\//);
+          const specter = part.match(/^p(\d+)of(\d+)/i);
+          const note = ur ? `${ur[1]}/${ur[2]}` : specter ? `${specter[1]}/${specter[2]}` : `${n}/${player.parts}`;
+          setVideoNote(note);
           try {
-            const part = player.next();
             const url = await QRCode.toDataURL(part, qrOpts(true, compact));
-            if (stop) return;
-            setVideoSrc(url);
-            const mark = part.match(/\/(\d+)-(\d+)\//);
-            setVideoNote(mark ? `${mark[1]}/${mark[2]}` : player.parts > 1 ? `1/${player.parts}` : null);
+            if (!stop) setVideoSrc(url);
           } finally {
             busy = false;
           }
@@ -87,6 +90,7 @@ export function QrPreview({ value, label, compact }: { value: string; label: str
           {t("qr.video")}
         </Button>
       </div>
+      {mode === "video" && videoNote ? <p className="font-mono text-sm text-fg">{videoNote}</p> : null}
       {src ? (
         <button
           type="button"
@@ -114,7 +118,6 @@ export function QrPreview({ value, label, compact }: { value: string; label: str
         </div>
       )}
       {error && mode === "still" ? <p className="text-xs text-danger">{error}</p> : null}
-      {mode === "video" && videoNote ? <p className="font-mono text-2xs text-fg-muted">{videoNote}</p> : null}
       <Dialog open={big} onOpenChange={setBig}>
         <DialogContent className="flex w-[min(32rem,calc(100vw-1.5rem))] flex-col items-center gap-3 p-4">
           <DialogTitle className="sr-only">{label}</DialogTitle>

@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.63:0',
+  version: '0.1.64:0',
   releaseNotes: {
     en_US:
-      'Transaction QR video keeps playing every fountain part. Specter DIY can finish a PSBT that needs more than eight frames, in recovery and in a manual transaction.',
+      'The transaction QR video shows a frame counter that advances with every part, for example 3/13.',
     de_DE:
-      'Das QR-Video einer Transaktion spielt alle Fountain-Teile. Specter DIY kann eine PSBT zu Ende lesen, die mehr als acht Frames braucht, in der Recovery und bei einer manuellen Transaktion.',
+      'Das QR-Video einer Transaktion zeigt einen Framezähler, der mit jedem Teil mitläuft, zum Beispiel 3/13.',
     es_ES:
-      'El vídeo QR de una transacción sigue con todas las partes fountain. Specter DIY puede terminar una PSBT que necesita más de ocho frames, en recuperación y en una transacción manual.',
+      'El vídeo QR de una transacción muestra un contador de frames que avanza con cada parte, por ejemplo 3/13.',
     pl_PL:
-      'Wideo QR transakcji odtwarza wszystkie części fountain. Specter DIY może dokończyć PSBT, które potrzebuje więcej niż osiem klatek, przy odzyskiwaniu i przy ręcznej transakcji.',
+      'Wideo QR transakcji pokazuje licznik klatek, który idzie z każdą częścią, na przykład 3/13.',
     fr_FR:
-      'La vidéo QR d’une transaction joue toutes les parties fountain. Specter DIY peut finir une PSBT qui demande plus de huit images, en récupération et pour une transaction manuelle.',
+      'La vidéo QR d’une transaction affiche un compteur d’images qui avance avec chaque partie, par exemple 3/13.',
   },
   migrations: {
     up: async () => {},
