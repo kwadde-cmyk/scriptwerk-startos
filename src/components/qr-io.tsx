@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import jsQR from "jsqr";
-import { createQrVideo } from "@/lib/tx/qr-video";
+import { createQrVideo, qrVideoPlayer } from "@/lib/tx/qr-video";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Camera, FileUp, ImageUp } from "lucide-react";
@@ -12,19 +12,38 @@ export function QrPreview({ value, label, compact }: { value: string; label: str
   const [src, setSrc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [big, setBig] = useState(false);
+  const [mode, setMode] = useState<"still" | "video">("still");
+  const [frame, setFrame] = useState(value);
   const box = compact ? 160 : 360;
   const cls = compact ? "size-40" : "size-[22.5rem]";
+  const shown = mode === "video" ? frame : value;
+
+  useEffect(() => {
+    if (mode !== "video") return;
+    let stop = false;
+    let timer = 0;
+    void qrVideoPlayer(value).then((player) => {
+      if (stop) return;
+      const tick = () => setFrame(player.next());
+      tick();
+      timer = window.setInterval(tick, 280);
+    });
+    return () => {
+      stop = true;
+      window.clearInterval(timer);
+    };
+  }, [mode, value]);
 
   useEffect(() => {
     let cancelled = false;
     setError(null);
     setSrc(null);
-    if (!value) {
+    if (!shown) {
       setError(t("qr.none"));
       return;
     }
-    QRCode.toDataURL(value, {
-      errorCorrectionLevel: value.length > 800 ? "L" : "M",
+    QRCode.toDataURL(shown, {
+      errorCorrectionLevel: shown.length > 800 ? "L" : "M",
       margin: 1,
       width: compact ? 640 : 880,
       color: { dark: "#0b0c0e", light: "#ffffff" },
@@ -38,10 +57,18 @@ export function QrPreview({ value, label, compact }: { value: string; label: str
     return () => {
       cancelled = true;
     };
-  }, [value, t, compact]);
+  }, [shown, t, compact]);
 
   return (
     <div className="flex flex-col items-center gap-3">
+      <div className="flex gap-1">
+        <Button type="button" size="sm" variant={mode === "still" ? "default" : "outline"} onClick={() => setMode("still")}>
+          {t("qr.still")}
+        </Button>
+        <Button type="button" size="sm" variant={mode === "video" ? "default" : "outline"} onClick={() => setMode("video")}>
+          {t("qr.video")}
+        </Button>
+      </div>
       {src ? (
         <button
           type="button"

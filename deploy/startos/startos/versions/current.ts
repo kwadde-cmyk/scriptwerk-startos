@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.60:0',
+  version: '0.1.61:0',
   releaseNotes: {
     en_US:
-      'Recovery signing takes one key and one transport at a time. Each transaction is sent, signed, and imported before the next. File transport downloads every open PSBT in one zip. Coins that share a tag can be merged into one transaction, per coin or all at once. The Ledger registers the descriptor on the first transaction if it is not there yet.',
+      'Recovery has No timelock beside By stage. Coins without a timelock stay in the stage list and show when the next stage opens. One button builds every PSBT, one signs them all. Descriptor, Miniscript, BSMS and PSBT can be a still QR or a QR video (UR for transactions, Specter parts for text).',
     de_DE:
-      'Beim Signieren der Recovery ist ein Schlüssel und ein Transport an der Reihe. Jede Transaktion wird gesendet, signiert und importiert, bevor die nächste kommt. Per Datei landen alle offenen PSBTs in einer Zip. Coins mit demselben Tag können eine Transaktion werden, pro Coin oder alle auf einmal. Der Ledger registriert den Descriptor bei der ersten Transaktion, falls er noch fehlt.',
+      'Die Recovery hat Ohne Timelock neben Nach Stufe. Coins ohne Timelock bleiben in der Stufenliste und zeigen, wann die nächste Stufe aufgeht. Ein Knopf erzeugt alle PSBTs, einer signiert sie. Descriptor, Miniscript, BSMS und PSBT können ein fester QR oder ein Video-QR sein (UR für Transaktionen, Specter-Teile für Text).',
     es_ES:
-      'Firmar la recuperación va de una clave y un transporte a la vez. Cada transacción se envía, se firma y se importa antes de la siguiente. Por archivo, todas las PSBT abiertas van en un zip. Las monedas con la misma etiqueta pueden juntarse en una transacción, por moneda o todas a la vez. El Ledger registra el descriptor en la primera transacción si aún no está.',
+      'La recuperación tiene Sin timelock junto a Por etapa. Las monedas sin timelock siguen en la lista de etapas y muestran cuándo abre la siguiente. Un botón crea todas las PSBT y otro las firma. Descriptor, Miniscript, BSMS y PSBT pueden ser un QR fijo o un QR de vídeo (UR para transacciones, partes Specter para texto).',
     pl_PL:
-      'Podpisywanie odzyskiwania idzie po jednym kluczu i jednym transporcie. Każda transakcja jest wysyłana, podpisywana i importowana, zanim przyjdzie następna. Plik pobiera wszystkie otwarte PSBT w jednym zipie. Monety z tym samym tagiem mogą wejść do jednej transakcji, pojedynczo albo wszystkie naraz. Ledger rejestruje deskryptor przy pierwszej transakcji, jeśli go jeszcze nie ma.',
+      'Odzyskiwanie ma Bez timelocka obok Według etapu. Monety bez timelocka zostają na liście etapów i pokazują, kiedy otworzy się następny. Jeden przycisk tworzy wszystkie PSBT, drugi je podpisuje. Deskryptor, Miniscript, BSMS i PSBT mogą być nieruchomym QR albo wideo QR (UR dla transakcji, części Specter dla tekstu).',
     fr_FR:
-      'La signature de récupération se fait une clé et un transport à la fois. Chaque transaction est envoyée, signée et importée avant la suivante. Par fichier, toutes les PSBT ouvertes partent dans un zip. Les pièces qui partagent un tag peuvent former une seule transaction, pièce par pièce ou toutes à la fois. Le Ledger enregistre le descripteur à la première transaction s’il n’y est pas encore.',
+      'La récupération a Sans timelock à côté de Par étape. Les pièces sans timelock restent dans la liste des étapes et indiquent quand la suivante s’ouvre. Un bouton crée toutes les PSBT, un autre les signe. Descripteur, Miniscript, BSMS et PSBT peuvent être un QR fixe ou une vidéo QR (UR pour les transactions, parties Specter pour le texte).',
   },
   migrations: {
     up: async () => {},
