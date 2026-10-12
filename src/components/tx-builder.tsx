@@ -811,11 +811,13 @@ function RecoverySignDialog({
   return (
     <>
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{t("rec.signTitle")}</DialogTitle>
           <DialogDescription>{t("rec.signBlurb")}</DialogDescription>
         </DialogHeader>
+        <ScrollArea className="max-h-[calc(85vh-8rem)]">
+        <div className="space-y-3 pr-3">
         <p className="text-sm text-fg">{t("rec.leftSigs", { n: leftSigs })}</p>
         {phase === "pick" ? (
           <div className="space-y-4">
@@ -877,7 +879,7 @@ function RecoverySignDialog({
                 {registerFirst ? <p className="text-xs text-pretty text-fg-muted">{t("rec.ledgerReg")}</p> : null}
                 {transport === "qr" ? (
                   <>
-                    <QrPreview value={current.psbt} label={t("tx.exportQr")} compact />
+                    <QrPreview value={current.psbt} label={t("tx.exportQr")} />
                     <Button type="button" variant="outline" onClick={() => setScan(true)}>{t("rec.importBack")}</Button>
                   </>
                 ) : null}
@@ -927,6 +929,8 @@ function RecoverySignDialog({
           </div>
         )}
         {error ? <p className="text-xs text-pretty text-danger">{error}</p> : null}
+        </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
     <Dialog open={scan} onOpenChange={setScan}>

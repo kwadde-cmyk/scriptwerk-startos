@@ -34,15 +34,23 @@ export function psbtText(text: string): string {
 export async function qrVideoPlayer(value: string): Promise<{ next: () => string }> {
   const raw = value.trim();
   if (looksLikePsbt(raw)) {
-    const bytes = raw.startsWith("cHNidP") ? base64ToBytes(raw) : hexToBytes(raw);
-    const { Buffer: NodeBuffer } = await import("buffer");
-    const { UR, UREncoder } = await import("@ngraveio/bc-ur");
-    const wrapped = UR.fromBuffer(NodeBuffer.from(bytes));
-    const ur = new UR(wrapped.cbor, "crypto-psbt");
-    const enc = new UREncoder(ur, 150);
-    return { next: () => enc.nextPart() };
+    try {
+      const bytes = raw.startsWith("cHNidP") ? base64ToBytes(raw) : hexToBytes(raw);
+      const { Buffer: NodeBuffer } = await import("buffer");
+      const { UR, UREncoder } = await import("@ngraveio/bc-ur");
+      const wrapped = UR.fromBuffer(NodeBuffer.from(bytes));
+      const ur = new UR(wrapped.cbor, "crypto-psbt");
+      const enc = new UREncoder(ur, 80);
+      return { next: () => enc.nextPart() };
+    } catch {
+      return specterPlayer(raw);
+    }
   }
-  const size = 180;
+  return specterPlayer(raw);
+}
+
+function specterPlayer(raw: string): { next: () => string } {
+  const size = 120;
   const chunks: string[] = [];
   for (let i = 0; i < raw.length; i += size) chunks.push(raw.slice(i, i + size));
   if (chunks.length <= 1) return { next: () => raw };
