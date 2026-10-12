@@ -10,8 +10,8 @@ import { useT } from "@/lib/use-t";
 export function QrPreview({ value, label, compact }: { value: string; label: string; compact?: boolean }) {
   const { t } = useT();
   const [still, setStill] = useState<string | null>(null);
-  const [frames, setFrames] = useState<string[]>([]);
-  const [tick, setTick] = useState(0);
+  const [videoSrc, setVideoSrc] = useState<string | null>(null);
+  const [videoNote, setVideoNote] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [big, setBig] = useState(false);
   const [mode, setMode] = useState<"still" | "video">("still");
@@ -41,39 +41,41 @@ export function QrPreview({ value, label, compact }: { value: string; label: str
   useEffect(() => {
     if (mode !== "video") return;
     let stop = false;
-    setFrames([]);
-    setTick(0);
+    let timer = 0;
+    let busy = false;
+    setVideoSrc(null);
+    setVideoNote(null);
     setError(null);
     void (async () => {
       try {
         const player = await qrVideoPlayer(value);
-        const parts: string[] = [];
-        const seen = new Set<string>();
-        for (let i = 0; i < 40 && parts.length < 8; i++) {
-          const part = player.next();
-          if (!part || seen.has(part)) continue;
-          seen.add(part);
-          parts.push(part);
-        }
-        const urls: string[] = [];
-        for (const part of parts) urls.push(await QRCode.toDataURL(part, qrOpts(false, compact)));
-        if (!stop) setFrames(urls);
+        const paint = async () => {
+          if (stop || busy) return;
+          busy = true;
+          try {
+            const part = player.next();
+            const url = await QRCode.toDataURL(part, qrOpts(true, compact));
+            if (stop) return;
+            setVideoSrc(url);
+            const mark = part.match(/\/(\d+)-(\d+)\//);
+            setVideoNote(mark ? `${mark[1]}/${mark[2]}` : player.parts > 1 ? `1/${player.parts}` : null);
+          } finally {
+            busy = false;
+          }
+        };
+        await paint();
+        if (!stop) timer = window.setInterval(() => void paint(), 500);
       } catch {
         if (!stop) setError(t("qr.long"));
       }
     })();
     return () => {
       stop = true;
+      window.clearInterval(timer);
     };
   }, [mode, value, compact, t]);
 
-  useEffect(() => {
-    if (mode !== "video" || frames.length < 2) return;
-    const timer = window.setInterval(() => setTick((n) => n + 1), 400);
-    return () => window.clearInterval(timer);
-  }, [mode, frames]);
-
-  const src = mode === "video" ? frames[tick % Math.max(frames.length, 1)] ?? null : still;
+  const src = mode === "video" ? videoSrc : still;
 
   return (
     <div className="flex flex-col items-center gap-3">
@@ -112,6 +114,7 @@ export function QrPreview({ value, label, compact }: { value: string; label: str
         </div>
       )}
       {error && mode === "still" ? <p className="text-xs text-danger">{error}</p> : null}
+      {mode === "video" && videoNote ? <p className="font-mono text-2xs text-fg-muted">{videoNote}</p> : null}
       <Dialog open={big} onOpenChange={setBig}>
         <DialogContent className="flex w-[min(32rem,calc(100vw-1.5rem))] flex-col items-center gap-3 p-4">
           <DialogTitle className="sr-only">{label}</DialogTitle>

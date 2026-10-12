@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.62:0',
+  version: '0.1.63:0',
   releaseNotes: {
     en_US:
-      'Recovery signing shows a real QR video, and the code is larger. The sign dialog uses the app scrollbar. Checking UTXOs sits in the watch-only card on the Wallet tab.',
+      'Transaction QR video keeps playing every fountain part. Specter DIY can finish a PSBT that needs more than eight frames, in recovery and in a manual transaction.',
     de_DE:
-      'Beim Signieren der Recovery läuft ein echtes QR-Video, und der Code ist größer. Der Signier-Dialog nutzt den Scrollbalken der App. UTXOs prüfen steht in der Watch-only-Kachel im Tab Wallet.',
+      'Das QR-Video einer Transaktion spielt alle Fountain-Teile. Specter DIY kann eine PSBT zu Ende lesen, die mehr als acht Frames braucht, in der Recovery und bei einer manuellen Transaktion.',
     es_ES:
-      'Firmar la recuperación muestra un vídeo QR de verdad y el código es más grande. El diálogo usa la barra de desplazamiento de la app. Comprobar UTXOs está en la tarjeta watch-only de Wallet.',
+      'El vídeo QR de una transacción sigue con todas las partes fountain. Specter DIY puede terminar una PSBT que necesita más de ocho frames, en recuperación y en una transacción manual.',
     pl_PL:
-      'Podpisywanie odzyskiwania pokazuje prawdziwe wideo QR, a kod jest większy. Okno używa paska przewijania aplikacji. Sprawdzanie UTXO jest na kafelku watch-only w zakładce Wallet.',
+      'Wideo QR transakcji odtwarza wszystkie części fountain. Specter DIY może dokończyć PSBT, które potrzebuje więcej niż osiem klatek, przy odzyskiwaniu i przy ręcznej transakcji.',
     fr_FR:
-      'La signature de récupération affiche une vraie vidéo QR, et le code est plus grand. La fenêtre utilise la barre de défilement de l’app. Vérifier les UTXO se fait dans la tuile watch-only de l’onglet Wallet.',
+      'La vidéo QR d’une transaction joue toutes les parties fountain. Specter DIY peut finir une PSBT qui demande plus de huit images, en récupération et pour une transaction manuelle.',
   },
   migrations: {
     up: async () => {},
