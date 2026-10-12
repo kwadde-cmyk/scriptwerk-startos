@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.59:0',
+  version: '0.1.60:0',
   releaseNotes: {
     en_US:
-      'Stage recovery can move every coin that is spendable now, so a stage can be reset before the next one opens. Choose one stage or all open coins. Marked keys select the coins they can move; marked coins show the keys they need. Descriptor check and loading UTXOs are on Build. The Check tab is gone.',
+      'Recovery signing takes one key and one transport at a time. Each transaction is sent, signed, and imported before the next. File transport downloads every open PSBT in one zip. Coins that share a tag can be merged into one transaction, per coin or all at once. The Ledger registers the descriptor on the first transaction if it is not there yet.',
     de_DE:
-      'Die Stufen-Recovery bewegt jeden Coin, der jetzt ausgebbar ist, damit eine Stufe vor dem Öffnen der nächsten zurückgesetzt werden kann. Eine Stufe oder alle offenen Coins. Markierte Schlüssel wählen die passenden Coins; markierte Coins zeigen die nötigen Schlüssel. Descriptor prüfen und UTXOs laden stehen unter Erstellen. Der Tab Prüfen entfällt.',
+      'Beim Signieren der Recovery ist ein Schlüssel und ein Transport an der Reihe. Jede Transaktion wird gesendet, signiert und importiert, bevor die nächste kommt. Per Datei landen alle offenen PSBTs in einer Zip. Coins mit demselben Tag können eine Transaktion werden, pro Coin oder alle auf einmal. Der Ledger registriert den Descriptor bei der ersten Transaktion, falls er noch fehlt.',
     es_ES:
-      'La recuperación por etapas mueve cada moneda que ya se puede gastar, para reiniciar una etapa antes de que abra la siguiente. Una etapa o todas las monedas abiertas. Las claves marcadas eligen esas monedas; las monedas marcadas muestran las claves necesarias. Comprobar el descriptor y cargar UTXOs está en Build. La pestaña Check desaparece.',
+      'Firmar la recuperación va de una clave y un transporte a la vez. Cada transacción se envía, se firma y se importa antes de la siguiente. Por archivo, todas las PSBT abiertas van en un zip. Las monedas con la misma etiqueta pueden juntarse en una transacción, por moneda o todas a la vez. El Ledger registra el descriptor en la primera transacción si aún no está.',
     pl_PL:
-      'Odzyskiwanie etapów przenosi każdą monetę, którą da się teraz wydać, żeby zresetować etap, zanim otworzy się następny. Jeden etap albo wszystkie otwarte monety. Zaznaczone klucze wybierają te monety; zaznaczone monety pokazują potrzebne klucze. Sprawdzenie deskryptora i wczytanie UTXO jest w Build. Zakładka Check znika.',
+      'Podpisywanie odzyskiwania idzie po jednym kluczu i jednym transporcie. Każda transakcja jest wysyłana, podpisywana i importowana, zanim przyjdzie następna. Plik pobiera wszystkie otwarte PSBT w jednym zipie. Monety z tym samym tagiem mogą wejść do jednej transakcji, pojedynczo albo wszystkie naraz. Ledger rejestruje deskryptor przy pierwszej transakcji, jeśli go jeszcze nie ma.',
     fr_FR:
-      'La récupération par étape déplace chaque pièce dépensable maintenant, pour remettre une étape à zéro avant que la suivante s’ouvre. Une étape ou toutes les pièces ouvertes. Les clés cochées sélectionnent ces pièces ; les pièces cochées indiquent les clés nécessaires. Vérifier le descripteur et charger les UTXO se fait dans Build. L’onglet Check disparaît.',
+      'La signature de récupération se fait une clé et un transport à la fois. Chaque transaction est envoyée, signée et importée avant la suivante. Par fichier, toutes les PSBT ouvertes partent dans un zip. Les pièces qui partagent un tag peuvent former une seule transaction, pièce par pièce ou toutes à la fois. Le Ledger enregistre le descripteur à la première transaction s’il n’y est pas encore.',
   },
   migrations: {
     up: async () => {},
