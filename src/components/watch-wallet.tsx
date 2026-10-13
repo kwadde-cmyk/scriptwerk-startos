@@ -400,7 +400,7 @@ export function WatchWalletPanel() {
                         height={snap.height}
                         funded={false}
                         label={labelText(labels, "addr", a.address)}
-                        tags={[]}
+                        labels={labels}
                       />
                     ))}
                   </ul>
@@ -422,7 +422,7 @@ export function WatchWalletPanel() {
                 height={snap.height}
                 funded
                 label={labelText(labels, "addr", a.address)}
-                tags={utxoTags(labels, coinsByAddr.get(a.address) ?? [])}
+                labels={labels}
               />
             ))}
             {fresh.map((a) => (
@@ -436,7 +436,7 @@ export function WatchWalletPanel() {
                 height={snap.height}
                 funded={false}
                 label={labelText(labels, "addr", a.address)}
-                tags={[]}
+                labels={labels}
               />
             ))}
           </ul>
@@ -572,19 +572,8 @@ function CoinRow({
   );
 }
 
-function utxoTags(
-  labels: Parameters<typeof labelText>[0],
-  coins: UtxoHit[],
-): string[] {
-  const out: string[] = [];
-  const seen = new Set<string>();
-  for (const u of coins) {
-    const tag = (labelText(labels, "output", `${u.txid}:${u.vout}`) || labelText(labels, "tx", u.txid)).trim();
-    if (!tag || seen.has(tag)) continue;
-    seen.add(tag);
-    out.push(tag);
-  }
-  return out;
+function utxoTag(labels: Parameters<typeof labelText>[0], u: UtxoHit): string {
+  return (labelText(labels, "output", `${u.txid}:${u.vout}`) || labelText(labels, "tx", u.txid)).trim();
 }
 
 function AddrRow({
@@ -596,7 +585,7 @@ function AddrRow({
   height,
   funded,
   label,
-  tags,
+  labels,
 }: {
   kind: string;
   index: number;
@@ -606,19 +595,13 @@ function AddrRow({
   height: number;
   funded: boolean;
   label: string;
-  tags: string[];
+  labels: Parameters<typeof labelText>[0];
 }) {
   const { t } = useT();
   return (
     <li className="rounded-md border border-border px-2 py-1.5">
       <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
-            {tags.map((tag) => (
-              <span key={tag} className="inline-flex items-center gap-1 text-xs text-fg">
-                <Tag className="size-3 text-fg-muted" />
-                {tag}
-              </span>
-            ))}
             <span className="text-2xs text-fg-muted">
               {kind} {index}
             </span>
@@ -640,8 +623,15 @@ function AddrRow({
         <ul className="mt-1.5 space-y-0.5 border-t border-border pt-1.5">
           {coins.map((u) => {
             const conf = u.height > 0 && height > 0 ? Math.max(0, height - u.height + 1) : 0;
+            const tag = utxoTag(labels, u);
             return (
               <li key={`${u.txid}:${u.vout}`} className="flex items-center gap-2 text-2xs text-fg-muted">
+                {tag ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 text-fg">
+                    <Tag className="size-3 text-fg-muted" />
+                    {tag}
+                  </span>
+                ) : null}
                 <AmountText btc={u.amount} />
                 <span className="shrink-0">{conf ? `${conf} conf` : t("wallet.unconf")}</span>
                 <span className="flex min-w-0 flex-1 font-mono">
