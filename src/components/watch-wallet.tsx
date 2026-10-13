@@ -15,8 +15,10 @@ import { useBitcoind } from "@/store/bitcoind";
 import { useStudio } from "@/store/studio";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { CopyButton } from "@/components/copy-button";
 import { AddressLine } from "@/components/address-qr";
 import { AmountInline, AmountText } from "@/components/amount";
@@ -129,6 +131,7 @@ export function WatchWalletPanel() {
   const [labelAsk, setLabelAsk] = useState<{ text: string; names: string[] } | null>(null);
   const [sort, setSort] = useState<CoinSort>("age");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("asc");
+  const [spentOpen, setSpentOpen] = useState(false);
 
   const descriptor = compiled?.ok ? compiled.descriptor : "";
   const checksum = descriptor ? checksumOf(descriptor) : "";
@@ -193,8 +196,10 @@ export function WatchWalletPanel() {
     setSortDir(id === "size" ? "desc" : "asc");
   }
 
-  const used = snap?.addresses.filter((a) => a.coins > 0) ?? [];
-  const unused = (snap?.addresses.filter((a) => a.coins === 0) ?? []).slice(0, 8);
+  const funded = snap?.addresses.filter((a) => a.coins > 0) ?? [];
+  const spent = snap?.addresses.filter((a) => a.used && a.coins === 0) ?? [];
+  const freshAll = snap?.addresses.filter((a) => !a.used && a.coins === 0) ?? [];
+  const fresh = freshAll.slice(0, 8);
   const coinsByAddr = useMemo(() => {
     const map = new Map<string, UtxoHit[]>();
     for (const u of snap?.unspents ?? []) {
@@ -368,9 +373,45 @@ export function WatchWalletPanel() {
 
       {snap?.addresses.length ? (
         <section>
-          <h3 className="mb-2 text-2xs font-medium tracking-[0.14em] text-fg-subtle uppercase">{t("wallet.addrs")}</h3>
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <h3 className="text-2xs font-medium tracking-[0.14em] text-fg-subtle uppercase">{t("wallet.addrs")}</h3>
+            {spent.length ? (
+              <Button type="button" variant="outline" size="sm" onClick={() => setSpentOpen(true)}>
+                {t("wallet.spentBtn", { n: spent.length })}
+              </Button>
+            ) : null}
+          </div>
+          <Dialog open={spentOpen} onOpenChange={setSpentOpen}>
+            <DialogContent className="flex max-h-[85vh] flex-col overflow-hidden">
+              <DialogHeader>
+                <DialogTitle>{t("wallet.spentTitle")}</DialogTitle>
+              </DialogHeader>
+              <ScrollArea className="max-h-[min(28rem,calc(85vh-8rem))]">
+                {spent.length ? (
+                  <ul className="space-y-1 pr-3">
+                    {spent.map((a) => (
+                      <AddrRow
+                        key={a.address}
+                        kind={t(`wallet.${a.kind}`)}
+                        index={a.index}
+                        address={a.address}
+                        amount={0}
+                        coins={[]}
+                        height={snap.height}
+                        funded={false}
+                        label={labelText(labels, "addr", a.address)}
+                        tags={[]}
+                      />
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs text-fg-muted">{t("wallet.spentEmpty")}</p>
+                )}
+              </ScrollArea>
+            </DialogContent>
+          </Dialog>
           <ul className="space-y-1">
-            {used.map((a) => (
+            {funded.map((a) => (
               <AddrRow
                 key={a.address}
                 kind={t(`wallet.${a.kind}`)}
@@ -379,11 +420,12 @@ export function WatchWalletPanel() {
                 amount={a.amount}
                 coins={coinsByAddr.get(a.address) ?? []}
                 height={snap.height}
-                used
+                funded
                 label={labelText(labels, "addr", a.address)}
+                tags={utxoTags(labels, coinsByAddr.get(a.address) ?? [])}
               />
             ))}
-            {unused.map((a) => (
+            {fresh.map((a) => (
               <AddrRow
                 key={a.address}
                 kind={t(`wallet.${a.kind}`)}
@@ -392,14 +434,15 @@ export function WatchWalletPanel() {
                 amount={0}
                 coins={[]}
                 height={snap.height}
-                used={false}
+                funded={false}
                 label={labelText(labels, "addr", a.address)}
+                tags={[]}
               />
             ))}
           </ul>
-          {snap.addresses.length > used.length + unused.length ? (
+          {freshAll.length > fresh.length ? (
             <p className="mt-1 text-2xs text-fg-subtle">
-              {t("wallet.moreAddrs", { n: snap.addresses.length - used.length - unused.length })}
+              {t("wallet.moreAddrs", { n: freshAll.length - fresh.length })}
             </p>
           ) : null}
         </section>
@@ -529,6 +572,21 @@ function CoinRow({
   );
 }
 
+function utxoTags(
+  labels: Parameters<typeof labelText>[0],
+  coins: UtxoHit[],
+): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const u of coins) {
+    const tag = (labelText(labels, "output", `${u.txid}:${u.vout}`) || labelText(labels, "tx", u.txid)).trim();
+    if (!tag || seen.has(tag)) continue;
+    seen.add(tag);
+    out.push(tag);
+  }
+  return out;
+}
+
 function AddrRow({
   kind,
   index,
@@ -536,8 +594,9 @@ function AddrRow({
   amount,
   coins,
   height,
-  used,
+  funded,
   label,
+  tags,
 }: {
   kind: string;
   index: number;
@@ -545,18 +604,25 @@ function AddrRow({
   amount: number;
   coins: UtxoHit[];
   height: number;
-  used: boolean;
+  funded: boolean;
   label: string;
+  tags: string[];
 }) {
   const { t } = useT();
   return (
     <li className="rounded-md border border-border px-2 py-1.5">
       <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-1.5">
+            {tags.map((tag) => (
+              <span key={tag} className="inline-flex items-center gap-1 text-xs text-fg">
+                <Tag className="size-3 text-fg-muted" />
+                {tag}
+              </span>
+            ))}
             <span className="text-2xs text-fg-muted">
               {kind} {index}
             </span>
-            {used ? (
+            {funded ? (
               <Badge variant="ok">
                 {t("wallet.sum")}: <AmountText btc={amount} className="tabular-nums" />
               </Badge>

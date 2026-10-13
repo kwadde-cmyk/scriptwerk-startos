@@ -1382,7 +1382,7 @@ async function walletMeta(descriptor: string, list: WatchAddr[], inputs: string[
 }
 
 function suggestChange(addresses: WatchAddr[], avoid: Set<string>): WatchAddr | null {
-  return addresses.find((a) => a.kind === "change" && a.coins === 0 && a.address && !avoid.has(a.address)) ?? null;
+  return addresses.find((a) => a.kind === "change" && a.coins === 0 && !a.used && a.address && !avoid.has(a.address)) ?? null;
 }
 
 function avoidSet(coins: UtxoHit[], rows: PayRow[]): Set<string> {
@@ -1446,7 +1446,7 @@ function freshReceive(addresses: WatchAddr[], taken: Set<string>): string[] {
   const used = new Set(taken);
   const out: string[] = [];
   for (const a of addresses) {
-    if (a.kind !== "receive" || a.coins > 0) continue;
+    if (a.kind !== "receive" || a.coins > 0 || a.used) continue;
     if (used.has(a.address)) continue;
     used.add(a.address);
     out.push(a.address);
