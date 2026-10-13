@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.67:0',
+  version: '0.1.68:0',
   releaseNotes: {
     en_US:
-      'Downloads use the policy name when one is set, and stay scriptwerk- otherwise. Recovery can send each signed transaction, or all of them.',
+      'Before a send, one line shows the amount, destination and fee. A sent transaction is marked until the coin has left the old address, then it disappears. No history.',
     de_DE:
-      'Downloads nutzen den Policy-Namen, wenn einer gesetzt ist, sonst bleibt scriptwerk-. Die Recovery kann jede signierte Transaktion senden, oder alle.',
+      'Vor dem Senden zeigt eine Zeile Betrag, Ziel und Gebühr. Eine gesendete Transaktion bleibt markiert, bis der Coin die alte Adresse verlassen hat, und verschwindet dann. Keine Historie.',
     es_ES:
-      'Las descargas usan el nombre de la policy si hay uno, y si no siguen siendo scriptwerk-. La recuperación puede enviar cada transacción firmada, o todas.',
+      'Antes de enviar, una línea muestra importe, destino y comisión. Una transacción enviada queda marcada hasta que la moneda deja la dirección antigua y entonces desaparece. Sin historial.',
     pl_PL:
-      'Pobrania używają nazwy policy, gdy jest ustawiona, inaczej zostaje scriptwerk-. Odzyskiwanie może wysłać każdą podpisaną transakcję albo wszystkie.',
+      'Przed wysłaniem jedna linia pokazuje kwotę, cel i opłatę. Wysłana transakcja jest oznaczona, aż moneta opuści stary adres, i wtedy znika. Bez historii.',
     fr_FR:
-      'Les téléchargements utilisent le nom de la policy s’il est défini, sinon ils restent scriptwerk-. La récupération peut envoyer chaque transaction signée, ou toutes.',
+      'Avant l’envoi, une ligne montre le montant, la destination et les frais. Une transaction envoyée reste marquée jusqu’à ce que la pièce quitte l’ancienne adresse, puis elle disparaît. Pas d’historique.',
   },
   migrations: {
     up: async () => {},
