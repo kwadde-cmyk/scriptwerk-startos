@@ -20,6 +20,7 @@ import { useHardware } from "@/store/hardware";
 import { pickUsbKind } from "@/lib/hw/usb-kind";
 import { isHmacHex } from "@/lib/hw/address-check";
 import { useStudio } from "@/store/studio";
+import { exportBase } from "@/lib/export-name";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -401,6 +402,10 @@ export function RecoveryTab() {
   const [built, setBuilt] = useState<{ id: string; psbt: string }[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [signOpen, setSignOpen] = useState(false);
+  const [sending, setSending] = useState<string | null>(null);
+  const [sent, setSent] = useState<Record<string, string>>({});
+  const nodeStatus = useBitcoind((s) => s.status);
+  const demo = useBitcoind((s) => s.demo);
   const presentSet = useMemo(() => new Set(present), [present]);
 
   const movable = useMemo(() => {
@@ -497,11 +502,66 @@ export function RecoveryTab() {
         next.push({ id: bundle.id, psbt: buildPsbt(plan, meta) });
       }
       setBuilt(next);
+      setSent({});
     } catch (e) {
       setBuilt([]);
+      setSent({});
       setError(localizeMessage(locale, e instanceof Error ? e.message : "tx.funds"));
     }
   }
+
+  async function broadcast(psbt: string) {
+    const hex = extractSignedTx(psbt);
+    const node = useBitcoind.getState();
+    return broadcastRawTx({ url: node.url, username: node.username, password: node.password }, hex);
+  }
+
+  async function sendOne(id: string, psbt: string) {
+    setError(null);
+    setSending(id);
+    try {
+      const txid = await broadcast(psbt);
+      setSent((cur) => ({ ...cur, [id]: txid }));
+    } catch (e) {
+      setError(localizeMessage(locale, e instanceof Error ? e.message : "tx.err.broadcast"));
+    } finally {
+      setSending(null);
+    }
+  }
+
+  async function sendAll() {
+    const queue = bundles.filter((bundle) => readyIds.has(bundle.id));
+    if (!queue.length) return;
+    setError(null);
+    setSending("all");
+    let failed = "";
+    for (const bundle of queue) {
+      const psbt = built.find((b) => b.id === bundle.id)?.psbt ?? "";
+      try {
+        const txid = await broadcast(psbt);
+        setSent((cur) => ({ ...cur, [bundle.id]: txid }));
+      } catch (e) {
+        if (!failed) failed = localizeMessage(locale, e instanceof Error ? e.message : "tx.err.broadcast");
+      }
+    }
+    setSending(null);
+    if (failed) setError(failed);
+  }
+
+  const nodeOk = nodeStatus === "ready" && !demo;
+  const readyIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const item of built) {
+      if (sent[item.id]) continue;
+      try {
+        extractSignedTx(item.psbt);
+        ids.add(item.id);
+      } catch {
+        /* still unsigned */
+      }
+    }
+    return ids;
+  }, [built, sent]);
 
   const sample = bundles[0];
   const sampleSize = spendSize(stages, reuse, sample?.pathIndex ?? 0);
@@ -631,6 +691,25 @@ export function RecoveryTab() {
                 <AmountInline btc={outSats / 1e8} /> · {t("tx.feeHint", { vb: String(vb), sats: String(feeSats) })}
               </p>
               {psbt ? <SigStatus psbt={psbt} pathIndex={bundle.pathIndex} /> : null}
+              {psbt ? (
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!readyIds.has(bundle.id) || !nodeOk || sending != null}
+                    onClick={() => void sendOne(bundle.id, psbt)}
+                  >
+                    {sending === bundle.id ? t("tx.sending") : t("rec.send")}
+                  </Button>
+                  {sent[bundle.id] ? (
+                    <span className="flex min-w-0 items-center gap-1">
+                      <span className="truncate font-mono text-2xs">{sent[bundle.id]}</span>
+                      <CopyButton value={sent[bundle.id]!} label={t("tx.copyTxid")} />
+                    </span>
+                  ) : null}
+                </div>
+              ) : null}
             </li>
           );
         })}
@@ -638,7 +717,11 @@ export function RecoveryTab() {
       <div className="flex flex-wrap gap-2">
         <Button type="button" onClick={() => void buildAll()} disabled={!bundles.length}>{t("rec.buildN", { n: bundles.length })}</Button>
         <Button type="button" variant="outline" disabled={!built.length} onClick={() => setSignOpen(true)}>{t("rec.signAll")}</Button>
+        <Button type="button" variant="outline" disabled={!readyIds.size || !nodeOk || sending != null} onClick={() => void sendAll()}>
+          {sending === "all" ? t("tx.sending") : t("rec.sendAll")}
+        </Button>
       </div>
+      {built.length && !nodeOk ? <p className="text-xs text-fg-muted">{t("tx.needNode")}</p> : null}
       <RecoverySignDialog
         open={signOpen}
         onOpenChange={setSignOpen}
@@ -650,7 +733,15 @@ export function RecoveryTab() {
             : `${bundle.members[0]?.coin.txid.slice(0, 10) ?? ""}…:${bundle.members[0]?.coin.vout ?? ""}`;
           return [{ id: bundle.id, psbt, pathIndex: bundle.pathIndex, title }];
         })}
-        onUpdate={(id, psbt) => setBuilt((cur) => cur.map((b) => (b.id === id ? { ...b, psbt } : b)))}
+        onUpdate={(id, psbt) => {
+          setBuilt((cur) => cur.map((b) => (b.id === id ? { ...b, psbt } : b)));
+          setSent((cur) => {
+            if (!cur[id]) return cur;
+            const next = { ...cur };
+            delete next[id];
+            return next;
+          });
+        }}
       />
       {error ? <p className="text-xs text-pretty text-danger">{error}</p> : null}
     </div>
@@ -896,7 +987,7 @@ function RecoverySignDialog({
                               name: `${String(i + 1).padStart(2, "0")}-${item.id.replace(":", "-")}.psbt`,
                               b64: item.psbt,
                             })),
-                            `scriptwerk-${keyName || "recovery"}.zip`,
+                            `${exportBase(useStudio.getState().policyName)}-${keyName || "recovery"}.zip`,
                           )
                         }
                       >
@@ -988,7 +1079,7 @@ function SignPane({
       <div className="space-y-2">
         <p className="text-2xs font-medium tracking-[0.14em] text-fg-subtle uppercase">{t("tx.export")}</p>
         <div className="flex flex-wrap gap-2">
-          <Button type="button" variant="outline" disabled={!ready} onClick={() => downloadPsbt(signed, "scriptwerk-send.psbt")}>{t("tx.psbt")}</Button>
+          <Button type="button" variant="outline" disabled={!ready} onClick={() => downloadPsbt(signed, `${exportBase(useStudio.getState().policyName)}-send.psbt`)}>{t("tx.psbt")}</Button>
           <Button type="button" variant="outline" disabled={!ready} onClick={() => setExportQr((v) => !v)}>{t("tx.exportQr")}</Button>
           <Tip label={t("tx.discard")}>
             <Button
@@ -1301,15 +1392,16 @@ function downloadPsbtZip(files: { name: string; b64: string }[], zipName: string
 }
 
 function downloadSigned(value: string) {
+  const base = exportBase(useStudio.getState().policyName);
   const raw = value.trim().replace(/\s+/g, "");
   if (/^[0-9a-fA-F]+$/.test(raw) && raw.length % 2 === 0) {
     const bytes = new Uint8Array(raw.length / 2);
     for (let i = 0; i < bytes.length; i++) bytes[i] = Number.parseInt(raw.slice(i * 2, i * 2 + 2), 16);
     const psbt = raw.toLowerCase().startsWith("70736274");
-    downloadBytes(bytes, psbt ? "scriptwerk-signed.psbt" : "scriptwerk-signed.txn");
+    downloadBytes(bytes, psbt ? `${base}-signed.psbt` : `${base}-signed.txn`);
     return;
   }
-  downloadPsbt(raw, "scriptwerk-signed.psbt");
+  downloadPsbt(raw, `${base}-signed.psbt`);
 }
 
 function rowSats(row: PayRow): number {

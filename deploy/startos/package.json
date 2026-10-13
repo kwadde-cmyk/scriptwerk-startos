@@ -1,6 +1,6 @@
 {
   "name": "scriptwerk-startos",
-  "version": "0.1.66",
+  "version": "0.1.67",
   "private": true,
   "scripts": {
     "build": "rm -rf ./javascript && ncc build startos/index.ts -o ./javascript",

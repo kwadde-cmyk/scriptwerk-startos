@@ -28,7 +28,8 @@ import { useT } from "@/lib/use-t";
 import { localizeMessage, numberLocale } from "@/lib/i18n";
 import { toast } from "sonner";
 import { ArrowDown, ArrowUp, Clock, Download, Lock, Tag, Unlock } from "lucide-react";
-import { PolicyNameHeading, usePolicyTitle } from "@/components/policy-title";
+import { PolicyNameHeading } from "@/components/policy-title";
+import { exportBase } from "@/lib/export-name";
 import { cn } from "@/lib/utils";
 
 type CoinSort = "age" | "size" | "addr" | "tag";
@@ -119,7 +120,7 @@ export function UtxoLoadCard({ bare = false }: { bare?: boolean }) {
 export function WatchWalletPanel() {
   const { t, locale } = useT();
   const nloc = numberLocale(locale);
-  const { name: titleName } = usePolicyTitle();
+  const policyName = useStudio((s) => s.policyName);
   const compiled = useStudio(compiledForStudio);
   const stages = useStudio((s) => s.stages);
   const reuseKeys = useStudio((s) => s.reuseKeys);
@@ -228,7 +229,7 @@ export function WatchWalletPanel() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${titleName.replace(/\s+/g, "-").toLowerCase()}-labels.jsonl`;
+    a.download = `${exportBase(policyName)}-labels.jsonl`;
     a.click();
     URL.revokeObjectURL(url);
     toast.success(t("wallet.bip329Exported", { n: records.length }));
