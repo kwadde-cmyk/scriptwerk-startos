@@ -415,11 +415,12 @@ function finalizePsbt(buf: Uint8Array): Uint8Array {
   const parsed = parseUnsigned(unsigned);
   const inputMaps = maps.slice(1, 1 + parsed.inputs.length);
   if (inputMaps.length !== parsed.inputs.length) throw new Error("tx.err.signed");
-  const finals = inputMaps.map((map) => {
+  const locktime = u32le(parsed.locktime);
+  const finals = inputMaps.map((map, n) => {
     const scriptSig = map.find((e) => e.key.length === 1 && e.key[0] === 0x07)?.value ?? new Uint8Array();
     let witness = map.find((e) => e.key.length === 1 && e.key[0] === 0x08)?.value ?? new Uint8Array();
     if (!scriptSig.length && !witness.length) {
-      const built = witnessFromPartial(map);
+      const built = witnessFromPartial(map, { sequence: u32le(parsed.inputs[n]!.sequence), locktime });
       if (!built) throw new Error("tx.err.unsigned");
       witness = built;
     }
@@ -474,7 +475,7 @@ function parseUnsigned(tx: Uint8Array): {
   return { version: version.bytes, inputs, outputs, locktime: locktime.bytes };
 }
 
-function witnessFromPartial(map: { key: Uint8Array; value: Uint8Array }[]): Uint8Array | null {
+function witnessFromPartial(map: { key: Uint8Array; value: Uint8Array }[], locks: SpendLocks): Uint8Array | null {
   const sigs = new Map<string, Uint8Array>();
   for (const entry of map) {
     if (entry.key.length === 34 && entry.key[0] === 0x02 && entry.value.length) {
@@ -484,7 +485,7 @@ function witnessFromPartial(map: { key: Uint8Array; value: Uint8Array }[]): Uint
   if (!sigs.size) return null;
   const script = map.find((e) => e.key.length === 1 && e.key[0] === 0x05)?.value;
   if (script?.length) {
-    const wit = satisfyScript(parseScript(script), sigs);
+    const wit = satisfyScript(parseScript(script), sigs, locks);
     if (!wit) return null;
     return encodeStack([...wit, script]);
   }
@@ -548,16 +549,40 @@ function isPub(tok: ScriptTok | undefined): tok is { t: "push"; data: Uint8Array
   return Boolean(tok && tok.t === "push" && tok.data.length === 33 && (tok.data[0] === 2 || tok.data[0] === 3));
 }
 
-function satisfyScript(toks: ScriptTok[], sigs: Map<string, Uint8Array>): Uint8Array[] | null {
-  const wit = satisfySeq(toks, 0, toks.length, sigs);
-  return wit;
+type SpendLocks = { sequence: number; locktime: number };
+
+function u32le(buf: Uint8Array): number {
+  return new DataView(buf.buffer, buf.byteOffset, buf.byteLength).getUint32(0, true);
 }
 
-function satisfySeq(toks: ScriptTok[], from: number, to: number, sigs: Map<string, Uint8Array>): Uint8Array[] | null {
+function csvOk(sequence: number, need: number): boolean {
+  if (sequence & 0x80000000) return false;
+  if (sequence & 0x00400000) return false;
+  return (sequence & 0xffff) >= need;
+}
+
+function cltvOk(locktime: number, sequence: number, need: number): boolean {
+  if (sequence === 0xffffffff) return false;
+  const timed = need >= 500_000_000;
+  if (timed !== (locktime >= 500_000_000)) return false;
+  return locktime >= need;
+}
+
+function satisfyScript(toks: ScriptTok[], sigs: Map<string, Uint8Array>, locks: SpendLocks): Uint8Array[] | null {
+  return satisfySeq(toks, 0, toks.length, sigs, locks);
+}
+
+function satisfySeq(
+  toks: ScriptTok[],
+  from: number,
+  to: number,
+  sigs: Map<string, Uint8Array>,
+  locks: SpendLocks,
+): Uint8Array[] | null {
   const parts: Uint8Array[][] = [];
   let i = from;
   while (i < to) {
-    const one = satisfyOne(toks, i, to, sigs);
+    const one = satisfyOne(toks, i, to, sigs, locks);
     if (!one) return null;
     parts.push(one.wit);
     i = one.next;
@@ -572,6 +597,7 @@ function satisfyOne(
   i: number,
   end: number,
   sigs: Map<string, Uint8Array>,
+  locks: SpendLocks,
 ): { wit: Uint8Array[]; next: number } | null {
   const tok = toks[i];
   if (!tok || i >= end) return null;
@@ -590,9 +616,9 @@ function satisfyOne(
       }
     }
     if (elseAt < 0 || j >= end) return null;
-    const left = satisfySeq(toks, i + 1, elseAt, sigs);
+    const left = satisfySeq(toks, i + 1, elseAt, sigs, locks);
     if (left) return { wit: [...left, Uint8Array.of(1)], next: j + 1 };
-    const right = satisfySeq(toks, elseAt + 1, j, sigs);
+    const right = satisfySeq(toks, elseAt + 1, j, sigs, locks);
     if (right) return { wit: [...right, new Uint8Array()], next: j + 1 };
     return null;
   }
@@ -620,6 +646,9 @@ function satisfyOne(
     }
     const lock = toks[i + 1];
     if (lock?.t === "op" && (lock.op === OP_CSV || lock.op === OP_CLTV)) {
+      const need = numOf(tok);
+      const ok = lock.op === OP_CSV ? csvOk(locks.sequence, need) : cltvOk(locks.locktime, locks.sequence, need);
+      if (!ok) return null;
       let next = i + 2;
       const drop = toks[next];
       if (drop?.t === "op" && drop.op === OP_DROP) next += 1;

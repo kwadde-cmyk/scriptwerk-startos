@@ -326,6 +326,46 @@ describe("finalize partial signatures", () => {
     assert.equal(hex.includes(Buffer.from(sigA).toString("hex")), true);
     assert.equal(hex.includes(Buffer.from(script).toString("hex")), true);
   });
+
+  it("spends the open branch when a later timelock also has signatures", () => {
+    const keyA = Uint8Array.from([0x02, ...new Array(32).fill(0x11)]);
+    const keyB = Uint8Array.from([0x03, ...new Array(32).fill(0x22)]);
+    const script = Uint8Array.from([
+      0x63,
+      keyA.length,
+      ...keyA,
+      0xad,
+      0x01,
+      144,
+      0xb2,
+      0x67,
+      keyB.length,
+      ...keyB,
+      0xac,
+      0x68,
+    ]);
+    const sigA = Uint8Array.from([0x30, 0x05, 1, 2, 3, 4, 1]);
+    const sigB = Uint8Array.from([0x30, 0x05, 5, 6, 7, 8, 1]);
+    const spot = { address: ADDR, witnessScript: Buffer.from(script).toString("hex"), derivations: [] as [] };
+    const coins = [{ txid: TXID, vout: 0, amountBtc: 0.002, address: ADDR }];
+    const now = planSpend({ coins, payTo: ADDR, paySats: 100_000, feeSats: 2_000, changeAddress: ADDR });
+    const open = extractSignedTx(
+      withPartialSigs(buildPsbt(now, { inputs: [spot] }), [
+        { input: 0, pubkey: keyA, signature: sigA },
+        { input: 0, pubkey: keyB, signature: sigB },
+      ]),
+    );
+    assert.equal(open.includes(Buffer.from(sigB).toString("hex")), true);
+    assert.equal(open.includes(Buffer.from(sigA).toString("hex")), false);
+    const later = planSpend({ coins, payTo: ADDR, paySats: 100_000, feeSats: 2_000, changeAddress: ADDR, older: 144, tip: 1_000 });
+    const locked = extractSignedTx(
+      withPartialSigs(buildPsbt(later, { inputs: [spot] }), [
+        { input: 0, pubkey: keyA, signature: sigA },
+        { input: 0, pubkey: keyB, signature: sigB },
+      ]),
+    );
+    assert.equal(locked.includes(Buffer.from(sigA).toString("hex")), true);
+  });
 });
 
 describe("qr video", () => {

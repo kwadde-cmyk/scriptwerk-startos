@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.69:0',
+  version: '0.1.70:0',
   releaseNotes: {
     en_US:
-      'Send turns on once a path is fully signed. Partial signatures from a device are turned into the final witness, so the node can take the transaction.',
+      'Send uses the branch whose locktime matches the transaction. A later stage that is also signed is no longer picked when you spend the open path.',
     de_DE:
-      'Senden wird aktiv, sobald ein Pfad vollständig signiert ist. Einzelsignaturen vom Gerät werden zum fertigen Witness, damit die Node die Transaktion annimmt.',
+      'Senden nimmt die Stufe, deren Locktime zur Transaktion passt. Eine später signierte Stufe wird nicht mehr gewählt, wenn der offene Pfad ausgegeben wird.',
     es_ES:
-      'Enviar se activa cuando un camino está firmado por completo. Las firmas parciales del dispositivo se convierten en el witness final para que el nodo acepte la transacción.',
+      'Enviar usa la etapa cuya locktime coincide con la transacción. Una etapa posterior que también esté firmada ya no se elige al gastar el camino abierto.',
     pl_PL:
-      'Wyślij włącza się, gdy ścieżka jest w pełni podpisana. Częściowe podpisy z urządzenia stają się gotowym witness, żeby węzeł przyjął transakcję.',
+      'Wyślij bierze etap, którego locktime pasuje do transakcji. Późniejszy podpisany etap nie jest już wybierany, gdy wydajesz otwartą ścieżkę.',
     fr_FR:
-      'Envoyer s’active dès qu’un chemin est entièrement signé. Les signatures partielles de l’appareil deviennent le witness final, pour que le nœud accepte la transaction.',
+      'Envoyer prend l’étape dont le locktime correspond à la transaction. Une étape plus tardive, même signée, n’est plus choisie quand on dépense le chemin ouvert.',
   },
   migrations: {
     up: async () => {},
