@@ -299,6 +299,35 @@ describe("unsigned psbt", () => {
   });
 });
 
+describe("finalize partial signatures", () => {
+  it("builds a raw transaction from a signed miniscript without a final witness", () => {
+    const plan = planSpend({
+      coins: [{ txid: TXID, vout: 0, amountBtc: 0.002, address: ADDR }],
+      payTo: ADDR,
+      paySats: 100_000,
+      feeSats: 2_000,
+      changeAddress: ADDR,
+    });
+    const keyA = Uint8Array.from([0x02, ...new Array(32).fill(0x11)]);
+    const keyB = Uint8Array.from([0x03, ...new Array(32).fill(0x22)]);
+    const script = Uint8Array.from([keyA.length, ...keyA, 0xad, keyB.length, ...keyB, 0xac]);
+    const bare = buildPsbt(plan, {
+      inputs: [{ address: ADDR, witnessScript: Buffer.from(script).toString("hex"), derivations: [] }],
+    });
+    assert.throws(() => extractSignedTx(bare), /tx\.err\.unsigned/);
+    const sigA = Uint8Array.from([0x30, 0x05, 1, 2, 3, 4, 1]);
+    const sigB = Uint8Array.from([0x30, 0x05, 5, 6, 7, 8, 1]);
+    const signed = withPartialSigs(bare, [
+      { input: 0, pubkey: keyA, signature: sigA },
+      { input: 0, pubkey: keyB, signature: sigB },
+    ]);
+    const hex = extractSignedTx(signed);
+    assert.equal(hex.includes(Buffer.from(sigB).toString("hex")), true);
+    assert.equal(hex.includes(Buffer.from(sigA).toString("hex")), true);
+    assert.equal(hex.includes(Buffer.from(script).toString("hex")), true);
+  });
+});
+
 describe("qr video", () => {
   it("joins a Specter QR video and a BBQr into one PSBT", async () => {
     const specter = createQrVideo();

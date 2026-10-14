@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.68:0',
+  version: '0.1.69:0',
   releaseNotes: {
     en_US:
-      'Before a send, one line shows the amount, destination and fee. A sent transaction is marked until the coin has left the old address, then it disappears. No history.',
+      'Send turns on once a path is fully signed. Partial signatures from a device are turned into the final witness, so the node can take the transaction.',
     de_DE:
-      'Vor dem Senden zeigt eine Zeile Betrag, Ziel und Gebühr. Eine gesendete Transaktion bleibt markiert, bis der Coin die alte Adresse verlassen hat, und verschwindet dann. Keine Historie.',
+      'Senden wird aktiv, sobald ein Pfad vollständig signiert ist. Einzelsignaturen vom Gerät werden zum fertigen Witness, damit die Node die Transaktion annimmt.',
     es_ES:
-      'Antes de enviar, una línea muestra importe, destino y comisión. Una transacción enviada queda marcada hasta que la moneda deja la dirección antigua y entonces desaparece. Sin historial.',
+      'Enviar se activa cuando un camino está firmado por completo. Las firmas parciales del dispositivo se convierten en el witness final para que el nodo acepte la transacción.',
     pl_PL:
-      'Przed wysłaniem jedna linia pokazuje kwotę, cel i opłatę. Wysłana transakcja jest oznaczona, aż moneta opuści stary adres, i wtedy znika. Bez historii.',
+      'Wyślij włącza się, gdy ścieżka jest w pełni podpisana. Częściowe podpisy z urządzenia stają się gotowym witness, żeby węzeł przyjął transakcję.',
     fr_FR:
-      'Avant l’envoi, une ligne montre le montant, la destination et les frais. Une transaction envoyée reste marquée jusqu’à ce que la pièce quitte l’ancienne adresse, puis elle disparaît. Pas d’historique.',
+      'Envoyer s’active dès qu’un chemin est entièrement signé. Les signatures partielles de l’appareil deviennent le witness final, pour que le nœud accepte la transaction.',
   },
   migrations: {
     up: async () => {},

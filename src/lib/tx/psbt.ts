@@ -417,8 +417,12 @@ function finalizePsbt(buf: Uint8Array): Uint8Array {
   if (inputMaps.length !== parsed.inputs.length) throw new Error("tx.err.signed");
   const finals = inputMaps.map((map) => {
     const scriptSig = map.find((e) => e.key.length === 1 && e.key[0] === 0x07)?.value ?? new Uint8Array();
-    const witness = map.find((e) => e.key.length === 1 && e.key[0] === 0x08)?.value ?? new Uint8Array();
-    if (!scriptSig.length && !witness.length) throw new Error("tx.err.unsigned");
+    let witness = map.find((e) => e.key.length === 1 && e.key[0] === 0x08)?.value ?? new Uint8Array();
+    if (!scriptSig.length && !witness.length) {
+      const built = witnessFromPartial(map);
+      if (!built) throw new Error("tx.err.unsigned");
+      witness = built;
+    }
     return { scriptSig, witness };
   });
   const witnessFlag = finals.some((f) => f.witness.length > 0);
@@ -468,6 +472,180 @@ function parseUnsigned(tx: Uint8Array): {
   const outputs = tx.slice(outputsAt, i);
   const locktime = readBytes(tx, i, 4);
   return { version: version.bytes, inputs, outputs, locktime: locktime.bytes };
+}
+
+function witnessFromPartial(map: { key: Uint8Array; value: Uint8Array }[]): Uint8Array | null {
+  const sigs = new Map<string, Uint8Array>();
+  for (const entry of map) {
+    if (entry.key.length === 34 && entry.key[0] === 0x02 && entry.value.length) {
+      sigs.set(bytesToHex(entry.key.slice(1)), entry.value);
+    }
+  }
+  if (!sigs.size) return null;
+  const script = map.find((e) => e.key.length === 1 && e.key[0] === 0x05)?.value;
+  if (script?.length) {
+    const wit = satisfyScript(parseScript(script), sigs);
+    if (!wit) return null;
+    return encodeStack([...wit, script]);
+  }
+  if (sigs.size !== 1) return null;
+  const utxo = map.find((e) => e.key.length === 1 && e.key[0] === 0x01)?.value;
+  if (!utxo || utxo.length < 10) return null;
+  const spkLen = utxo[8] ?? 0;
+  const spk = utxo.slice(9, 9 + spkLen);
+  if (spk.length !== 22 || spk[0] !== 0x00 || spk[1] !== 0x14) return null;
+  const [pub, sig] = [...sigs.entries()][0]!;
+  return encodeStack([sig, hexToBytes(pub)]);
+}
+
+type ScriptTok = { t: "push"; data: Uint8Array } | { t: "op"; op: number };
+
+const OP_IF = 0x63;
+const OP_ELSE = 0x67;
+const OP_ENDIF = 0x68;
+const OP_DROP = 0x75;
+const OP_CHECKSIG = 0xac;
+const OP_CHECKSIGVERIFY = 0xad;
+const OP_CHECKMULTISIG = 0xae;
+const OP_CHECKMULTISIGVERIFY = 0xaf;
+const OP_CLTV = 0xb1;
+const OP_CSV = 0xb2;
+
+function parseScript(script: Uint8Array): ScriptTok[] {
+  const out: ScriptTok[] = [];
+  let i = 0;
+  while (i < script.length) {
+    const op = script[i]!;
+    if (op === 0) {
+      out.push({ t: "push", data: new Uint8Array() });
+      i += 1;
+      continue;
+    }
+    if (op <= 75) {
+      out.push({ t: "push", data: script.slice(i + 1, i + 1 + op) });
+      i += 1 + op;
+      continue;
+    }
+    if (op === 0x4c && i + 1 < script.length) {
+      const n = script[i + 1]!;
+      out.push({ t: "push", data: script.slice(i + 2, i + 2 + n) });
+      i += 2 + n;
+      continue;
+    }
+    out.push({ t: "op", op });
+    i += 1;
+  }
+  return out;
+}
+
+function isNum(tok: ScriptTok | undefined): boolean {
+  if (!tok) return false;
+  if (tok.t === "op") return tok.op >= 0x51 && tok.op <= 0x60;
+  return tok.data.length <= 4;
+}
+
+function isPub(tok: ScriptTok | undefined): tok is { t: "push"; data: Uint8Array } {
+  return Boolean(tok && tok.t === "push" && tok.data.length === 33 && (tok.data[0] === 2 || tok.data[0] === 3));
+}
+
+function satisfyScript(toks: ScriptTok[], sigs: Map<string, Uint8Array>): Uint8Array[] | null {
+  const wit = satisfySeq(toks, 0, toks.length, sigs);
+  return wit;
+}
+
+function satisfySeq(toks: ScriptTok[], from: number, to: number, sigs: Map<string, Uint8Array>): Uint8Array[] | null {
+  const parts: Uint8Array[][] = [];
+  let i = from;
+  while (i < to) {
+    const one = satisfyOne(toks, i, to, sigs);
+    if (!one) return null;
+    parts.push(one.wit);
+    i = one.next;
+  }
+  const wit: Uint8Array[] = [];
+  for (let n = parts.length - 1; n >= 0; n--) wit.push(...parts[n]!);
+  return wit;
+}
+
+function satisfyOne(
+  toks: ScriptTok[],
+  i: number,
+  end: number,
+  sigs: Map<string, Uint8Array>,
+): { wit: Uint8Array[]; next: number } | null {
+  const tok = toks[i];
+  if (!tok || i >= end) return null;
+  if (tok.t === "op" && tok.op === OP_IF) {
+    let depth = 1;
+    let elseAt = -1;
+    let j = i + 1;
+    for (; j < end; j++) {
+      const cur = toks[j]!;
+      if (cur.t !== "op") continue;
+      if (cur.op === OP_IF) depth += 1;
+      else if (cur.op === OP_ELSE && depth === 1 && elseAt < 0) elseAt = j;
+      else if (cur.op === OP_ENDIF) {
+        depth -= 1;
+        if (depth === 0) break;
+      }
+    }
+    if (elseAt < 0 || j >= end) return null;
+    const left = satisfySeq(toks, i + 1, elseAt, sigs);
+    if (left) return { wit: [...left, Uint8Array.of(1)], next: j + 1 };
+    const right = satisfySeq(toks, elseAt + 1, j, sigs);
+    if (right) return { wit: [...right, new Uint8Array()], next: j + 1 };
+    return null;
+  }
+  if (isNum(tok)) {
+    let p = i + 1;
+    const pubs: Uint8Array[] = [];
+    while (p < end && isPub(toks[p])) {
+      const pub = toks[p];
+      if (pub?.t === "push") pubs.push(pub.data);
+      p += 1;
+    }
+    const count = toks[p];
+    const cms = toks[p + 1];
+    if (pubs.length && isNum(count) && cms?.t === "op" && (cms.op === OP_CHECKMULTISIG || cms.op === OP_CHECKMULTISIGVERIFY)) {
+      const k = numOf(tok);
+      const picked: Uint8Array[] = [];
+      for (const pub of pubs) {
+        const sig = sigs.get(bytesToHex(pub));
+        if (!sig) continue;
+        picked.push(sig);
+        if (picked.length === k) break;
+      }
+      if (picked.length < k) return null;
+      return { wit: [new Uint8Array(), ...picked], next: p + 2 };
+    }
+    const lock = toks[i + 1];
+    if (lock?.t === "op" && (lock.op === OP_CSV || lock.op === OP_CLTV)) {
+      let next = i + 2;
+      const drop = toks[next];
+      if (drop?.t === "op" && drop.op === OP_DROP) next += 1;
+      return { wit: [], next };
+    }
+  }
+  if (isPub(tok)) {
+    const op = toks[i + 1];
+    if (op?.t === "op" && (op.op === OP_CHECKSIG || op.op === OP_CHECKSIGVERIFY)) {
+      const sig = sigs.get(bytesToHex(tok.data));
+      if (!sig) return null;
+      return { wit: [sig], next: i + 2 };
+    }
+  }
+  return null;
+}
+
+function numOf(tok: ScriptTok): number {
+  if (tok.t === "op") return tok.op - 0x50;
+  let n = 0;
+  for (let i = 0; i < tok.data.length; i++) n |= tok.data[i]! << (8 * i);
+  return n;
+}
+
+function encodeStack(items: Uint8Array[]): Uint8Array {
+  return concat(items.map((item) => concat([compact(item.length), item])));
 }
 
 function witnessStack(blob: Uint8Array): Uint8Array {
