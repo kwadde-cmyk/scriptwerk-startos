@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { btcToSats, buildPsbt, estimateVbytes, extractSignedTx, feeFromRate, inspectSignatures, mergePsbtSignatures, planPayments, planSpend, samePsbtTransaction, satsToDecimal, sequenceAndLocktime, withPartialSigs, addedSignaturePubkeys } from "./psbt.ts";
+import { btcToSats, buildPsbt, estimateVbytes, extractSignedTx, feeFromRate, inspectSignatures, mergePsbtSignatures, planPayments, planSpend, samePsbtTransaction, satsToDecimal, sequenceAndLocktime, withPartialSigs, addedSignaturePubkeys, witnessScriptBytes } from "./psbt.ts";
 import { signatureReport } from "./sigs.ts";
 import { createQrVideo } from "./qr-video.ts";
 import { emptyKey } from "../miniscript/keys.ts";
@@ -75,6 +75,12 @@ describe("unsigned psbt", () => {
     assert.ok(vb > 100 && vb < 400);
     assert.equal(feeFromRate(2, vb), vb * 2);
     assert.equal(feeFromRate(0, vb), 0);
+    const policy = "or_i(and_v(v:and_v(v:pk(A1),pk(B1)),older(144)),and_v(v:pk(A),pk(B)))";
+    assert.equal(witnessScriptBytes(policy), 147);
+    const p2wsh = "bc1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3qccfmv3";
+    const full = estimateVbytes({ inputs: 1, outputs: [p2wsh], sigs: 2, keys: 2, scriptBytes: witnessScriptBytes(policy) });
+    assert.equal(full, 169);
+    assert.equal(feeFromRate(0.25, full), 43);
     assert.equal(satsToDecimal(100_000_001), "1.00000001");
     const report = inspectSignatures(buildPsbt(planSpend({
       coins: [{ txid: TXID, vout: 0, amountBtc: 0.002, address: ADDR }],

@@ -1,3 +1,4 @@
+import { compileMiniscript } from "@bitcoinerlab/miniscript";
 import { scriptPubKeyFromAddress } from "../electrum.ts";
 
 const DUST_SATS = 546;
@@ -59,18 +60,62 @@ export function btcToSats(btc: number): number {
   return Number(whole) * 100_000_000 + Number(frac.padEnd(8, "0").slice(0, 8));
 }
 
-/** Virtual bytes for a wsh spend. Witness is an estimate: sigs plus a script sized from the key count. */
-export function estimateVbytes(opts: { inputs: number; outputs: string[]; sigs: number; keys: number }): number {
+/** Virtual bytes for a segwit spend. `scriptBytes` is the full witness script, not just the branch being spent. */
+export function estimateVbytes(opts: { inputs: number; outputs: string[]; sigs: number; keys: number; scriptBytes?: number }): number {
   const inputs = Math.max(0, Math.floor(opts.inputs));
   const sigs = Math.max(1, Math.floor(opts.sigs));
   const keys = Math.max(sigs, Math.floor(opts.keys));
-  const script = keys * 35 + 15;
+  const script = opts.scriptBytes && opts.scriptBytes > 0 ? Math.floor(opts.scriptBytes) : keys * 35 + 15;
   const witness = 1 + sigs * 74 + 1 + script;
   let outputs = 0;
   for (const address of opts.outputs) outputs += outputVbytes(address);
   const nonWitness = 4 + 1 + inputs * 41 + 1 + outputs + 4;
   const weight = nonWitness * 4 + 2 + inputs * witness;
   return Math.max(1, Math.ceil(weight / 4));
+}
+
+const scriptLenCache = new Map<string, number>();
+
+/** Byte length of the compiled witness script. Same for every address of the policy. */
+export function witnessScriptBytes(miniscript: string): number {
+  const src = miniscript.trim();
+  if (!src) return 0;
+  const cached = scriptLenCache.get(src);
+  if (cached != null) return cached;
+  let len = 0;
+  try {
+    const compiled = compileMiniscript(withDummyKeys(src));
+    if (compiled.asm) len = asmBytes(compiled.asm);
+  } catch {
+    len = 0;
+  }
+  scriptLenCache.set(src, len);
+  return len;
+}
+
+function withDummyKeys(miniscript: string): string {
+  let n = 0;
+  const key = () => {
+    n += 1;
+    return `02${n.toString(16).padStart(2, "0")}${"11".repeat(31)}`;
+  };
+  return miniscript
+    .replace(/\[[^\]]*\]/g, "")
+    .replace(/\/(?:\*|<\d+(?:;\d+)*>)(?:\/\*)?/g, "")
+    .replace(/[txyzuv]pub[1-9A-HJ-NP-Za-km-z]+/gi, key)
+    .replace(/\b[A-Za-z_][A-Za-z0-9_]*\b(?!\s*[(:])/g, key);
+}
+
+function asmBytes(asm: string): number {
+  let n = 0;
+  for (const tok of asm.split(/\s+/)) {
+    if (!tok) continue;
+    if (tok.startsWith("<") && tok.endsWith(">")) {
+      const len = (tok.length - 2) / 2;
+      n += (len < 76 ? 1 : len < 256 ? 2 : 3) + len;
+    } else n += 1;
+  }
+  return n;
 }
 
 export function feeFromRate(satPerVb: number, vbytes: number): number {
