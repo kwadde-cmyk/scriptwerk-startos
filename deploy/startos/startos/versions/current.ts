@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.72:0',
+  version: '0.1.73:0',
   releaseNotes: {
     en_US:
-      'Four build libraries are pinned to versions without the reported denial-of-service issues. The running service does not use them.',
+      'Descriptions are shorter. The fee line says the size is an estimate.',
     de_DE:
-      'Vier Bau-Bibliotheken stehen auf Ständen ohne die gemeldeten Absturzfehler. Der laufende Dienst nutzt sie nicht.',
+      'Die Beschreibungen sind kürzer. An der Gebühr steht, dass die Größe geschätzt ist.',
     es_ES:
-      'Cuatro bibliotecas de compilación quedan fijadas en versiones sin los fallos de denegación de servicio avisados. El servicio en marcha no las usa.',
+      'Las descripciones son más cortas. La línea de la comisión indica que el tamaño es una estimación.',
     pl_PL:
-      'Cztery biblioteki budowania są przypięte do wersji bez zgłoszonych błędów odmowy usługi. Działająca usługa ich nie używa.',
+      'Opisy są krótsze. Przy opłacie widać, że rozmiar jest szacowany.',
     fr_FR:
-      'Quatre bibliothèques de construction sont figées sur des versions sans les défauts de déni de service signalés. Le service en marche ne les utilise pas.',
+      'Les descriptions sont plus courtes. La ligne des frais indique que la taille est une estimation.',
   },
   migrations: {
     up: async () => {},
