@@ -10,6 +10,7 @@ const ALLOWED_METHODS = new Set([
   "getblockcount",
   "getdescriptorinfo",
   "deriveaddresses",
+  "sendrawtransaction",
 ]);
 
 export function bitcoindUpstream() {

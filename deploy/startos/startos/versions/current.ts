@@ -4,15 +4,15 @@ export const current = VersionInfo.of({
   version: '0.1.74:0',
   releaseNotes: {
     en_US:
-      'RPC proxy now only forwards the methods Scriptwerk actually uses (getnetworkinfo, getblockchaininfo, getmininginfo, getblockcount, getdescriptorinfo, deriveaddresses). Everything else is rejected before it reaches Core.',
+      'The Bitcoin RPC proxy accepts only the seven methods the app uses. Other methods are rejected.',
     de_DE:
-      'Der RPC-Proxy leitet nur noch die Methoden weiter, die Scriptwerk wirklich nutzt (getnetworkinfo, getblockchaininfo, getmininginfo, getblockcount, getdescriptorinfo, deriveaddresses). Alles andere wird vor Core abgelehnt.',
+      'Der Bitcoin-RPC-Proxy nimmt nur die sieben Methoden an, die die App nutzt. Andere werden abgelehnt.',
     es_ES:
-      'El proxy RPC ahora solo reenvía los métodos que Scriptwerk realmente usa. El resto se rechaza antes de llegar a Core.',
+      'El proxy RPC de Bitcoin acepta solo los siete métodos que usa la app. Los demás se rechazan.',
     pl_PL:
-      'Proxy RPC przekazuje teraz tylko metody, których Scriptwerk naprawdę używa. Reszta jest odrzucana przed Core.',
+      'Proxy RPC Bitcoina przyjmuje tylko siedem metod, których używa aplikacja. Pozostałe są odrzucane.',
     fr_FR:
-      'Le proxy RPC ne transmet plus que les méthodes que Scriptwerk utilise vraiment. Le reste est rejeté avant Core.',
+      'Le proxy RPC Bitcoin n’accepte que les sept méthodes utilisées par l’app. Les autres sont rejetées.',
   },
   migrations: {
     up: async () => {},
