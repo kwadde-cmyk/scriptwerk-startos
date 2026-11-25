@@ -2,6 +2,16 @@
 
 import { attachElectrumProxy } from "./electrum-proxy.mjs";
 
+/** Methods Scriptwerk is allowed to call. Keep in sync with src/lib/bitcoind/rpc.ts. */
+const ALLOWED_METHODS = new Set([
+  "getnetworkinfo",
+  "getblockchaininfo",
+  "getmininginfo",
+  "getblockcount",
+  "getdescriptorinfo",
+  "deriveaddresses",
+]);
+
 export function bitcoindUpstream() {
   const url = String(process.env.BITCOIND_RPC_URL ?? "").trim();
   return url ? url.replace(/\/+$/, "") : "";
@@ -35,6 +45,14 @@ export async function forwardBitcoindRpc(input) {
   const method = String(input?.method ?? "");
   if (!method) {
     return { status: 400, body: JSON.stringify({ error: { code: -32600, message: "method required" } }) };
+  }
+  if (!ALLOWED_METHODS.has(method)) {
+    return {
+      status: 403,
+      body: JSON.stringify({
+        error: { code: -32601, message: `method not allowed: ${method}` },
+      }),
+    };
   }
   const fromForm = input?.auth && typeof input.auth === "object" ? input.auth : null;
   const envUser = String(process.env.BITCOIND_RPC_USER ?? process.env.BITCOIND_RPC_USERNAME ?? "").trim();
