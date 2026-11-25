@@ -1,18 +1,18 @@
 import { IMPOSSIBLE, VersionInfo } from '@start9labs/start-sdk'
 
 export const current = VersionInfo.of({
-  version: '0.1.73:0',
+  version: '0.1.74:0',
   releaseNotes: {
     en_US:
-      'Descriptions are shorter. The fee line says the size is an estimate.',
+      'RPC proxy now only forwards the methods Scriptwerk actually uses (getnetworkinfo, getblockchaininfo, getmininginfo, getblockcount, getdescriptorinfo, deriveaddresses). Everything else is rejected before it reaches Core.',
     de_DE:
-      'Die Beschreibungen sind kürzer. An der Gebühr steht, dass die Größe geschätzt ist.',
+      'Der RPC-Proxy leitet nur noch die Methoden weiter, die Scriptwerk wirklich nutzt (getnetworkinfo, getblockchaininfo, getmininginfo, getblockcount, getdescriptorinfo, deriveaddresses). Alles andere wird vor Core abgelehnt.',
     es_ES:
-      'Las descripciones son más cortas. La línea de la comisión indica que el tamaño es una estimación.',
+      'El proxy RPC ahora solo reenvía los métodos que Scriptwerk realmente usa. El resto se rechaza antes de llegar a Core.',
     pl_PL:
-      'Opisy są krótsze. Przy opłacie widać, że rozmiar jest szacowany.',
+      'Proxy RPC przekazuje teraz tylko metody, których Scriptwerk naprawdę używa. Reszta jest odrzucana przed Core.',
     fr_FR:
-      'Les descriptions sont plus courtes. La ligne des frais indique que la taille est une estimation.',
+      'Le proxy RPC ne transmet plus que les méthodes que Scriptwerk utilise vraiment. Le reste est rejeté avant Core.',
   },
   migrations: {
     up: async () => {},
